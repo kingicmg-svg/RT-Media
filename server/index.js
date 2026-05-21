@@ -2,6 +2,8 @@ require("dotenv").config();
 const express  = require("express");
 const cors     = require("cors");
 const path     = require("path");
+const fs       = require("fs");
+const multer   = require("multer");
 const { pool, init } = require("./db");
 const em       = require("./emails");
 
@@ -9,6 +11,14 @@ const app  = express();
 const PORT = process.env.PORT || 3001;
 const ADMIN_SECRET = "rt_media26";
 const DEPLOY_TIME = new Date().toISOString();
+
+const uploadDir = path.join(__dirname, "..", "videos");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const upload = multer({ 
+  dest: uploadDir,
+  limits: { fileSize: 500 * 1024 * 1024 } // 500MB
+});
 
 app.use(cors());
 app.use(express.json());
@@ -358,6 +368,24 @@ app.get("/security-info", async (req, res) => {
     const { rows: users } = await pool.query("SELECT id, username, email, twofa_enabled, last_login FROM admin_users");
     const { rows: history } = await pool.query("SELECT * FROM login_history ORDER BY created_at DESC LIMIT 20");
     res.json({ users: users[0], history });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /upload-video (Admin video upload) ────────────────────────────────────
+app.post("/upload-video", upload.single("file"), (req, res) => {
+  try {
+    const { secret } = req.query;
+    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    if (!req.file) return res.status(400).json({ ok: false, error: "No file uploaded" });
+    
+    const originalName = req.body.filename || req.file.originalname;
+    const finalPath = path.join(uploadDir, originalName);
+    fs.renameSync(req.file.path, finalPath);
+    
+    res.json({ ok: true, message: `✅ Uploaded ${originalName}`, path: `/videos/${originalName}` });
   } catch(e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });
