@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Receipt — Round Table Media</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:#f5f5f5;color:#0D0D0D;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+
+    /* Loading / error */
+    .center-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;padding:24px;text-align:center}
+    .center-state img{height:48px}
+    .center-state p{color:#666;font-size:15px}
+    .spinner{width:36px;height:36px;border:3px solid #eee;border-top-color:#FF7835;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Page wrapper */
+    .page{max-width:680px;margin:0 auto;padding:40px 24px 80px;display:none}
+
+    /* Print header */
+    .receipt-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;flex-wrap:wrap;gap:16px}
+    .receipt-logo{height:52px}
+    .receipt-title{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.1em;color:#999;text-align:right}
+    .receipt-conf{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.04em;background:linear-gradient(135deg,#FF7835,#FF3D6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+    /* Status badge */
+    .status-bar{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #eee;border-radius:12px;padding:14px 20px;margin-bottom:24px}
+    .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .dot-confirmed{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5)}
+    .dot-pending{background:#FF7835;box-shadow:0 0 8px rgba(255,120,53,.5)}
+    .dot-rescheduled{background:#818cf8;box-shadow:0 0 8px rgba(129,140,248,.5)}
+    .status-txt{font-size:14px;font-weight:500;flex:1}
+    .status-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#999}
+
+    /* Sections */
+    .card{background:#fff;border:1px solid #eee;border-radius:14px;margin-bottom:16px;overflow:hidden}
+    .card-title{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.1em;color:#aaa;padding:14px 20px 10px;border-bottom:1px solid #f0f0f0;text-transform:uppercase}
+    .card-body{padding:16px 20px}
+    .row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid #f9f9f9}
+    .row:last-child{border-bottom:none}
+    .row-label{font-size:13px;color:#666}
+    .row-val{font-size:14px;font-weight:500;color:#0D0D0D;text-align:right}
+
+    /* Totals */
+    .totals .row{padding:9px 0}
+    .row-total .row-label{font-weight:700;font-size:15px;color:#0D0D0D}
+    .row-total .row-val{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.04em;background:linear-gradient(135deg,#FF7835,#FF3D6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .row-deposit .row-label{color:#FF7835;font-weight:600}
+    .row-deposit .row-val{color:#FF7835;font-weight:700}
+    .row-balance .row-label{color:#22c55e;font-weight:600}
+    .row-balance .row-val{color:#22c55e;font-weight:700}
+
+    /* Calendar CTA */
+    .cal-btn{display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(135deg,rgba(255,120,53,.08),rgba(255,61,107,.08));border:1px solid rgba(255,120,53,.2);border-radius:12px;cursor:pointer;margin-bottom:16px;text-decoration:none}
+    .cal-icon{width:40px;height:40px;background:linear-gradient(135deg,#FF7835,#FF3D6B);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .cal-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2}
+    .cal-text strong{display:block;font-size:14px;font-weight:600;color:#0D0D0D}
+    .cal-text span{font-size:12px;color:#888}
+
+    /* Download button */
+    .print-btn{width:100%;padding:16px;background:linear-gradient(135deg,#FF7835,#FF3D6B);border:none;border-radius:12px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;cursor:pointer;margin-top:8px}
+    .print-btn:hover{filter:brightness(1.07)}
+
+    /* Footer */
+    .receipt-footer{margin-top:32px;text-align:center;color:#aaa;font-size:12px;line-height:1.8}
+    .receipt-footer strong{color:#888}
+
+    /* Print styles */
+    @media print{
+      body{background:#fff}
+      .print-btn,.cal-btn,.no-print{display:none!important}
+      .page{display:block!important;padding:20px;max-width:100%}
+      .card{border:1px solid #ddd;break-inside:avoid}
+      .receipt-conf{color:#FF7835!important;-webkit-text-fill-color:#FF7835!important}
+    }
+
+    @media(max-width:500px){
+      .page{padding:24px 16px 60px}
+      .receipt-header{flex-direction:column;align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+
+<div class="center-state" id="loading">
+  <div class="spinner"></div>
+  <p>Loading receipt…</p>
+</div>
+
+<div class="center-state" id="errState" style="display:none">
+  <img src="./RT MEDIA_animate 3.PNG" alt="RT Media" style="filter:grayscale(1) opacity(.4)"/>
+  <p id="errMsg">Receipt not found.</p>
+  <a href="./" style="color:#FF7835;font-size:14px">← Back to website</a>
+</div>
+
+<div class="page" id="page">
+  <!-- Header -->
+  <div class="receipt-header">
+    <img class="receipt-logo" src="./RT MEDIA_animate 3.PNG" alt="Round Table Media"/>
+    <div>
+      <div class="receipt-title">Booking Receipt</div>
+      <div class="receipt-conf" id="rConf"></div>
+      <div class="receipt-title" id="rDate"></div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-dot" id="statusDot"></div>
+    <div>
+      <div class="status-lbl">Booking Status</div>
+      <div class="status-txt" id="statusTxt"></div>
+    </div>
+  </div>
+
+  <!-- Client info -->
+  <div class="card">
+    <div class="card-title">Client</div>
+    <div class="card-body">
+      <div class="row"><span class="row-label">Name</span><span class="row-val" id="rName"></span></div>
+      <div class="row"><span class="row-label">Email</span><span class="row-val" id="rEmail"></span></div>
+      <div class="row"><span class="row-label">Phone</span><span class="row-val" id="rPhone"></span></div>
+    </div>
+  </div>
+
+  <!-- Booking details -->
+  <div class="card" id="cycDetails">
+    <div class="card-title">Booking Details</div>
+    <div class="card-body">
+      <div class="row"><span class="row-label">Date</span><span class="row-val" id="rBookDate"></span></div>
+      <div class="row"><span class="row-label">Start Time</span><span class="row-val" id="rStartTime"></span></div>
+      <div class="row"><span class="row-label">Duration</span><span class="row-val" id="rDuration"></span></div>
+      <div class="row"><span class="row-label">Add-ons</span><span class="row-val" id="rAddons"></span></div>
+      <div class="row"><span class="row-label">Payment Method</span><span class="row-val" id="rPayMethod"></span></div>
+    </div>
+  </div>
+
+  <!-- Production inquiry details -->
+  <div class="card" id="prodDetails" style="display:none">
+    <div class="card-title">Project Details</div>
+    <div class="card-body">
+      <div class="row"><span class="row-label">Project Type</span><span class="row-val" id="rProjType"></span></div>
+      <div class="row"><span class="row-label">Crew Add-ons</span><span class="row-val" id="rCrew"></span></div>
+      <div class="row"><span class="row-label">Message</span><span class="row-val" id="rMsg" style="max-width:320px;text-align:right;font-size:13px"></span></div>
+    </div>
+  </div>
+
+  <!-- Totals (CYC only) -->
+  <div class="card totals" id="totalsCard">
+    <div class="card-title">Summary</div>
+    <div class="card-body">
+      <div class="row"><span class="row-label" id="rStudioLabel">Studio Rental</span><span class="row-val" id="rStudioTotal"></span></div>
+      <div class="row"><span class="row-label">Cleaning Fee</span><span class="row-val">$10.00</span></div>
+      <div class="row"><span class="row-label">HST (13%)</span><span class="row-val" id="rHST"></span></div>
+      <div class="row row-total"><span class="row-label">Grand Total</span><span class="row-val" id="rGrandTotal"></span></div>
+      <div class="row row-deposit"><span class="row-label">Deposit Paid</span><span class="row-val" id="rDeposit"></span></div>
+      <div class="row row-balance"><span class="row-label">Balance Due on Arrival</span><span class="row-val" id="rBalance"></span></div>
+    </div>
+  </div>
+
+  <!-- Add to calendar -->
+  <a class="cal-btn no-print" id="calBtn" href="#" target="_blank">
+    <div class="cal-icon">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </div>
+    <div class="cal-text">
+      <strong>Add to Google Calendar</strong>
+      <span>Save your booking date</span>
+    </div>
+  </a>
+
+  <!-- Download -->
+  <button class="print-btn no-print" onclick="window.print()">⬇ Download / Print Receipt</button>
+
+  <!-- Footer -->
+  <div class="receipt-footer">
+    <strong>Round Table Media</strong><br/>
+    Toronto, Ontario · bookings@roundtablemedia.ca<br/>
+    Questions about your booking? Reply to your confirmation email.
+  </div>
+</div>
+
+<script>
+  const API = "https://rtm-api-abop.onrender.com";
+
+  function fmt(n){ return "$" + parseFloat(n||0).toFixed(2); }
+
+  function buildCalLink(b) {
+    if (!b.date_str || !b.start_time) return "#";
+    const parts = b.start_time.split(" ");
+    const [hStr] = parts[0].split(":");
+    let h = parseInt(hStr, 10);
+    if (parts[1]==="PM" && h!==12) h+=12;
+    if (parts[1]==="AM" && h===12) h=0;
+    const pad = n => String(n).padStart(2,"0");
+    const d = new Date(b.date_str+"T12:00:00");
+    const yr=d.getFullYear(), mo=pad(d.getMonth()+1), dy=pad(d.getDate());
+    const s=`${yr}${mo}${dy}T${pad(h)}0000`;
+    const e=`${yr}${mo}${dy}T${pad(h+(parseInt(b.hrs)||2))}0000`;
+    const notes = [
+      `Booking confirmed with Round Table Media.`,
+      `Conf#: ${b.conf}`,
+      `Duration: ${b.dur_label} (${b.hrs}h)`,
+      `Add-ons: ${b.addons||"None"}`,
+      `Deposit paid: ${fmt(b.deposit)}`,
+      `Balance due on arrival: ${fmt(b.balance_due)}`,
+      `Questions? bookings@roundtablemedia.ca`,
+    ].join("\n");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE`
+      + `&text=${encodeURIComponent("Round Table Media — CYC Wall Booking")}`
+      + `&dates=${s}/${e}`
+      + `&details=${encodeURIComponent(notes)}`
+      + `&location=${encodeURIComponent("Round Table Media Studio, Toronto ON")}`;
+  }
+
+  async function load() {
+    const conf = new URLSearchParams(window.location.search).get("conf");
+    if (!conf) { showErr("No confirmation number provided."); return; }
+    try {
+      const res = await fetch(`${API}/receipt/${encodeURIComponent(conf)}`);
+      if (res.status === 404) { showErr("Receipt not found for " + conf); return; }
+      const b = await res.json();
+      render(b);
+    } catch(e) {
+      showErr("Could not load receipt: " + e.message);
+    }
+  }
+
+  function showErr(msg) {
+    document.getElementById("loading").style.display="none";
+    document.getElementById("errState").style.display="flex";
+    document.getElementById("errMsg").textContent = msg;
+  }
+
+  function render(b) {
+    document.getElementById("loading").style.display="none";
+    document.getElementById("page").style.display="block";
+    document.title = `Receipt ${b.conf} — Round Table Media`;
+
+    // Header
+    document.getElementById("rConf").textContent = b.conf;
+    document.getElementById("rDate").textContent = b.date_str
+      ? new Date(b.date_str+"T12:00:00").toLocaleDateString("en-CA",{weekday:"long",year:"numeric",month:"long",day:"numeric"})
+      : new Date(b.created_at).toLocaleDateString("en-CA",{year:"numeric",month:"long",day:"numeric"});
+
+    // Status
+    const dot = document.getElementById("statusDot");
+    const statusTxt = b.status.charAt(0).toUpperCase() + b.status.slice(1);
+    document.getElementById("statusTxt").textContent = statusTxt;
+    if (b.status==="confirmed")  dot.className="status-dot dot-confirmed";
+    else if (b.status==="rescheduled") dot.className="status-dot dot-rescheduled";
+    else dot.className="status-dot dot-pending";
+
+    // Client
+    document.getElementById("rName").textContent  = b.name;
+    document.getElementById("rEmail").textContent = b.email;
+    document.getElementById("rPhone").textContent = b.phone||"—";
+
+    if (b.type==="cyc") {
+      // Booking details
+      document.getElementById("rBookDate").textContent   = b.date_str ? new Date(b.date_str+"T12:00:00").toLocaleDateString("en-CA",{weekday:"short",month:"long",day:"numeric",year:"numeric"}) : "—";
+      document.getElementById("rStartTime").textContent  = b.start_time||"—";
+      document.getElementById("rDuration").textContent   = (b.dur_label||"") + " — " + (b.hrs||"") + "h";
+      document.getElementById("rAddons").textContent     = b.addons||"None";
+      document.getElementById("rPayMethod").textContent  = b.pay_method||"—";
+
+      // Totals
+      document.getElementById("rStudioLabel").textContent = `Studio Rental (${b.hrs}h × $100)`;
+      document.getElementById("rStudioTotal").textContent = fmt((b.hrs||0)*100);
+      document.getElementById("rHST").textContent         = fmt(b.hst);
+      document.getElementById("rGrandTotal").textContent  = fmt(b.grand_total);
+      document.getElementById("rDeposit").textContent     = fmt(b.deposit);
+      document.getElementById("rBalance").textContent     = fmt(b.balance_due);
+
+      // Calendar
+      document.getElementById("calBtn").href = buildCalLink(b);
+      document.getElementById("calBtn").style.display = b.date_str ? "flex" : "none";
+
+    } else {
+      // Production inquiry
+      document.getElementById("cycDetails").style.display  = "none";
+      document.getElementById("totalsCard").style.display  = "none";
+      document.getElementById("calBtn").style.display      = "none";
+      document.getElementById("prodDetails").style.display = "block";
+      document.getElementById("rProjType").textContent = b.project_type||"—";
+      document.getElementById("rCrew").textContent     = b.crew_addons||"None";
+      document.getElementById("rMsg").textContent      = b.message||"—";
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

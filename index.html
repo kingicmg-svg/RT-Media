@@ -85,6 +85,7 @@
       { key:"custom", label:"Custom",    sub:"Choose your hours",      price:"",     hrs:0 },
     ];
     const CONTACT_EMAIL = "rtablemedia@gmail.com";
+    const API_BASE = "https://rtm-api-abop.onrender.com";
     const PAYMENT = {
       etransfer: "rtablemedia@gmail.com",
       paypal:    "https://paypal.me/roundtablemedia",
@@ -586,127 +587,77 @@
           + `&location=${encodeURIComponent("Round Table Media Studio, Toronto ON")}`;
       }
 
-      // Pure mailto — opens Gmail with a pre-filled, structured email
-      function submitCYC({ selDate, selTime, hrs, durLabel, dueNow, grandTotal, selectedAddons, payMethod }) {
-        const conf = makeConfNum();
-        const addOnList = selectedAddons.length
-          ? selectedAddons.map(id => CYC_ADDONS.find(a=>a.id===id)?.label).join(", ")
-          : "None";
-        const dateStr  = selDate ? selDate.toDateString() : "";
-        const balanceDue = (grandTotal - dueNow).toFixed(2);
+      const [submitting, setSubmitting] = useState(false);
+      const [submitErr,  setSubmitErr]  = useState("");
 
-        // Google Calendar link for YOU (studio owner)
-        const ownerCal = buildCalLink({
-          title: `📽 CYC Booking — ${cyc.name} [${conf}]`,
-          dateObj: selDate,
-          startTime: selTime,
-          hrs,
-          notes: [
-            `Conf#: ${conf}`,
-            `Client: ${cyc.name}`,
-            `Email: ${cyc.email}`,
-            `Phone: ${cyc.phone || "N/A"}`,
-            `Duration: ${durLabel} (${hrs}h)`,
-            `Add-ons: ${addOnList}`,
-            `Payment method: ${payMethod}`,
-            `Deposit paid: $${dueNow.toFixed(2)}`,
-            `Balance on arrival: $${balanceDue}`,
-          ].join("\n")
-        });
+      async function submitCYC({ selDate, selTime, hrs, durLabel, dueNow, grandTotal, selectedAddons, payMethod }) {
+        setSubmitting(true); setSubmitErr("");
+        try {
+          const dateStr = selDate ? selDate.toLocaleDateString("en-CA") : "";
+          const addOnList = selectedAddons.length
+            ? selectedAddons.map(id => CYC_ADDONS.find(a=>a.id===id)?.label).join(", ")
+            : "None";
+          const studio_total = hrs * 100 + 10;
+          const hst          = Math.round(studio_total * 0.13 * 100) / 100;
+          const res = await fetch(`${API_BASE}/booking`, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({
+              name: cyc.name, email: cyc.email, phone: cyc.phone || null,
+              date_str: dateStr, start_time: selTime, hrs, dur_label: durLabel,
+              addons: addOnList, pay_method: payMethod,
+              studio_total, hst, grand_total: grandTotal,
+              deposit: 100, balance_due: Math.round((grandTotal - dueNow)*100)/100,
+            }),
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error || "Server error");
 
-        // Google Calendar link for the CLIENT
-        const clientCal = buildCalLink({
-          title: `Round Table Media — CYC Wall Booking`,
-          dateObj: selDate,
-          startTime: selTime,
-          hrs,
-          notes: [
-            `Booking confirmed with Round Table Media.`,
-            `Conf#: ${conf}`,
-            `Duration: ${durLabel} (${hrs}h)`,
-            `Add-ons: ${addOnList}`,
-            `Deposit paid: $${dueNow.toFixed(2)}`,
-            `Balance due on arrival: $${balanceDue}`,
-            `Questions? rtablemedia@gmail.com`,
-          ].join("\n")
-        });
-
-        // Email to YOU — fully structured booking details
-        const subject = encodeURIComponent(`🎬 CYC Booking — ${cyc.name} — ${dateStr} [${conf}]`);
-        const body = encodeURIComponent([
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `  ROUND TABLE MEDIA — CYC BOOKING`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          ``,
-          `  Conf#      ${conf}`,
-          `  Date       ${dateStr}`,
-          `  Time       ${selTime || ""} — ${selTime ? (()=>{
-            const p=selTime.split(" ");const[hh]=p[0].split(":");let hh2=parseInt(hh,10);
-            if(p[1]==="PM"&&hh2!==12)hh2+=12;if(p[1]==="AM"&&hh2===12)hh2=0;
-            hh2+=hrs;const ap=hh2>=12&&hh2<24?"PM":"AM";const out=hh2>12?hh2-12:hh2===0?12:hh2;
-            return out+":00 "+ap;
-          })() : ""}`,
-          `  Duration   ${durLabel} — ${hrs} hour${hrs>1?"s":""}`,
-          ``,
-          `━━ CLIENT ━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `  Name       ${cyc.name}`,
-          `  Email      ${cyc.email}`,
-          `  Phone      ${cyc.phone || "N/A"}`,
-          ``,
-          `━━ ADD-ONS ━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `  ${addOnList}`,
-          ``,
-          `━━ PAYMENT ━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `  Method          ${payMethod}`,
-          `  Studio (${hrs}h×$100) $${(hrs*100).toFixed(2)}`,
-          `  Cleaning fee    $10.00`,
-          `  HST (13%)       $${(Math.round((hrs*100+10)*0.13*100)/100).toFixed(2)}`,
-          `  Grand Total     $${grandTotal.toFixed(2)}`,
-          `  Deposit Paid    $${dueNow.toFixed(2)}`,
-          `  Balance on Arrival  $${balanceDue}`,
-          ``,
-          `━━ GOOGLE CALENDAR ━━━━━━━━━━━━━━━━━`,
-          ownerCal,
-          ``,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        ].join("\n"));
-
-        window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-
-        setCalLink(ownerCal);
-        setClientCalLink(clientCal);
-        setConfNum(conf);
-        setDone(true);
+          // Build Google Calendar link for the client
+          const clientCal = buildCalLink({
+            title: "Round Table Media — CYC Wall Booking",
+            dateObj: selDate, startTime: selTime, hrs,
+            notes: [
+              `Conf#: ${data.conf}`, `Duration: ${durLabel} (${hrs}h)`,
+              `Add-ons: ${addOnList}`,
+              `Deposit paid: $${dueNow.toFixed(2)}`,
+              `Balance due on arrival: $${(grandTotal-dueNow).toFixed(2)}`,
+              "Questions? bookings@roundtablemedia.ca",
+            ].join("\n"),
+          });
+          setClientCalLink(clientCal);
+          setConfNum(data.conf);
+          setDone(true);
+        } catch(e) {
+          setSubmitErr("Booking failed — " + e.message + ". Please email " + CONTACT_EMAIL);
+        } finally {
+          setSubmitting(false);
+        }
       }
 
-      function submitProduction() {
-        const conf = makeConfNum();
-        const crewList = addons.length ? addons.join(", ") : "None";
-        const subject = encodeURIComponent(`🎥 Production Inquiry — ${proj.name} [${conf}]`);
-        const body = encodeURIComponent([
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `  ROUND TABLE MEDIA — PRODUCTION INQUIRY`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          ``,
-          `  Conf#      ${conf}`,
-          ``,
-          `━━ CLIENT ━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `  Name       ${proj.name}`,
-          `  Email      ${proj.email}`,
-          `  Phone      ${proj.phone || "N/A"}`,
-          `  Project    ${proj.service || "Not specified"}`,
-          ``,
-          `━━ CREW ADD-ONS ━━━━━━━━━━━━━━━━━━━━`,
-          `  ${crewList}`,
-          ``,
-          `━━ PROJECT DETAILS ━━━━━━━━━━━━━━━━━`,
-          proj.message || "No details provided.",
-          ``,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        ].join("\n"));
-        window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-        setConfNum(conf);
-        setDone(true);
+      async function submitProduction() {
+        if (!proj.name || !proj.email) { setSubmitErr("Name and email are required."); return; }
+        setSubmitting(true); setSubmitErr("");
+        try {
+          const crewList = addons.length ? addons.join(", ") : "None";
+          const res = await fetch(`${API_BASE}/production`, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({
+              name: proj.name, email: proj.email, phone: proj.phone || null,
+              project_type: proj.service || null, crew_addons: crewList,
+              message: proj.message || null,
+            }),
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error || "Server error");
+          setConfNum(data.conf);
+          setDone(true);
+        } catch(e) {
+          setSubmitErr("Submission failed — " + e.message + ". Please email " + CONTACT_EMAIL);
+        } finally {
+          setSubmitting(false);
+        }
       }
 
       return (
