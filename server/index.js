@@ -12,8 +12,16 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || "changeme";
 app.use(cors());
 app.use(express.json());
 
-// Serve the entire website (index.html, admin.html, receipt.html, images, etc.)
-app.use(express.static(path.join(__dirname, "..")));
+// Add MIME types for video files
+app.use(express.static(path.join(__dirname, ".."), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.mov')) {
+      res.setHeader('Content-Type', 'video/quicktime');
+    } else if (filePath.endsWith('.mp4')) {
+      res.setHeader('Content-Type', 'video/mp4');
+    }
+  }
+}));
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
