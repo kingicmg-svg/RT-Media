@@ -364,24 +364,6 @@ app.get("/security-info", async (req, res) => {
   }
 });
 
-// ── POST /upload-video (Admin video upload) ────────────────────────────────────
-app.post("/upload-video", upload.single("file"), (req, res) => {
-  try {
-    const { secret } = req.query;
-    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
-    if (!req.file) return res.status(400).json({ ok: false, error: "No file uploaded" });
-    
-    const originalName = req.body.filename || req.file.originalname;
-    const finalPath = path.join(uploadDir, originalName);
-    fs.renameSync(req.file.path, finalPath);
-    
-    res.json({ ok: true, message: `✅ Uploaded ${originalName}`, path: `/videos/${originalName}` });
-  } catch(e) {
-    console.error(e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
 // ── Boot ──────────────────────────────────────────────────────────────────────
 init().then(() => {
   app.listen(PORT, () => console.log(`RTM API running on :${PORT}`));
