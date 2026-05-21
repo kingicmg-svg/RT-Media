@@ -272,10 +272,15 @@
 
     /* ── Blob thumbnail ─────────────────────────────────────────────────────── */
     function BlobThumb({ grad, br, height = 300, src, poster, label, catTag, children }) {
+      const vidRef = React.useRef(null);
       return (
-        <div className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:"pointer" }}>
+        <div className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:"pointer" }}
+          onMouseEnter={() => vidRef.current && vidRef.current.play()}
+          onMouseLeave={() => vidRef.current && vidRef.current.pause()}
+          onClick={() => src && window.open(src, '_blank')}
+        >
           {src
-            ? <video src={src} poster={poster} muted loop playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+            ? <video ref={vidRef} src={src} poster={poster} muted playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
             : null
           }
           {(label || catTag) && (
