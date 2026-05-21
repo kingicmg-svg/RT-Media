@@ -163,10 +163,16 @@
   <img class="login-logo" src="https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG" alt="RT Media" onerror="this.style.display='none'"/>
   <div class="login-title">RTM PORTAL</div>
   <div class="login-sub">Studio management dashboard</div>
-  <div class="login-box">
+  <div class="login-box" id="loginBox">
     <input type="password" id="pwInput" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="btn-grad" onclick="doLogin()">ENTER PORTAL</button>
     <div class="login-err" id="loginErr"></div>
+  </div>
+  <div class="login-box" id="twoFaBox" style="display:none">
+    <div class="login-sub" id="twoFaMsg">6-digit code sent to your email</div>
+    <input type="text" id="twoFaInput" placeholder="000000" maxlength="6" style="font-size:24px;text-align:center;letter-spacing:8px" onkeydown="if(event.key==='Enter')verifyTwoFa()"/>
+    <button class="btn-grad" onclick="verifyTwoFa()">VERIFY</button>
+    <div class="login-err" id="twoFaErr"></div>
   </div>
 </div>
 
@@ -364,12 +370,27 @@ async function doLogin() {
   if (!pw) return;
   document.getElementById("loginErr").textContent = "";
   try {
-    const r = await fetch(`${API}/bookings?secret=${encodeURIComponent(pw)}`);
-    if (r.status === 401) { document.getElementById("loginErr").textContent = "Wrong password."; return; }
-    secret = pw;
-    bookings = await r.json();
+    const r = await fetch(`${API}/login-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      document.getElementById("loginErr").textContent = d.error || "Login failed";
+      return;
+    }
+    if (d.needs2fa) {
+      sessionStorage.twoFaSessionId = d.sessionId;
+      document.getElementById("pwInput").value = "";
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("twoFaBox").style.display = "flex";
+      return;
+    }
+    secret = d.sessionToken;
+    bookings = [];
     document.getElementById("login").style.display = "none";
-    document.getElementById("app").style.display   = "block";
+    document.getElementById("app").style.display = "block";
     await loadSettings();
     renderBookings();
   } catch(e) {
@@ -377,11 +398,44 @@ async function doLogin() {
   }
 }
 
+async function verifyTwoFa() {
+  const code = document.getElementById("twoFaInput").value.trim();
+  if (code.length !== 6) return;
+  try {
+    const r = await fetch(`${API}/verify-2fa`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: sessionStorage.twoFaSessionId, code: code })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      document.getElementById("twoFaErr").textContent = d.error || "Invalid code";
+      return;
+    }
+    secret = d.sessionToken;
+    bookings = [];
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    await loadSettings();
+    renderBookings();
+  } catch(e) {
+    document.getElementById("twoFaErr").textContent = "Error: " + e.message;
+  }
+}
+
 function logout() {
+  fetch(`${API}/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionToken: secret })
+  });
   secret = ""; bookings = []; settings = {};
-  document.getElementById("app").style.display   = "none";
+  document.getElementById("app").style.display = "none";
   document.getElementById("login").style.display = "flex";
   document.getElementById("pwInput").value = "";
+  document.getElementById("twoFaInput").value = "";
+  document.getElementById("loginBox").style.display = "flex";
+  document.getElementById("twoFaBox").style.display = "none";
 }
 
 /* ── Navigation ────────────────────────────────────────────────── */
