@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: rt-media-main
+    runtime: node
+    rootDir: server
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: rt-media-admin
+    runtime: node
+    rootDir: admin-app
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3002
+      - key: MAIN_SERVER_URL
+        fromService:
+          name: rt-media-main
+          type: web
+          property: url
