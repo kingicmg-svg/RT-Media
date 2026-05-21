@@ -2,6 +2,8 @@ require("dotenv").config();
 const express  = require("express");
 const cors     = require("cors");
 const path     = require("path");
+const fs       = require("fs");
+const multer   = require("multer");
 const { pool, init } = require("./db");
 const em       = require("./emails");
 
@@ -9,11 +11,19 @@ const app  = express();
 const PORT = process.env.PORT || 3001;
 const ADMIN_SECRET = "rt_media26";
 const DEPLOY_TIME = new Date().toISOString();
+const VIDEOS_DIR = "/mnt/videos";
 
 app.use(cors());
 app.use(express.json());
 
-// Add MIME types for video files
+// Create videos directory if it doesn't exist
+if (!fs.existsSync(VIDEOS_DIR)) {
+  fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+}
+
+const upload = multer({ storage: multer.diskStorage({ destination: VIDEOS_DIR, filename: (req, file, cb) => cb(null, file.originalname) }) });
+
+// Serve static files with MIME types
 app.use(express.static(path.join(__dirname, ".."), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.mov')) {
@@ -24,6 +34,22 @@ app.use(express.static(path.join(__dirname, ".."), {
   }
 }));
 
+// Serve videos from persistent disk with MIME types
+app.use('/videos', express.static('/mnt/videos', {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.mov')) {
+      res.setHeader('Content-Type', 'video/quicktime');
+    } else if (filePath.endsWith('.mp4')) {
+      res.setHeader('Content-Type', 'video/mp4');
+    }
+  }
+}));
+
+// Temporary upload endpoint for videos (secret token required)
+app.post('/upload-videos/:token', upload.array('files'), (req, res) => {
+  if (req.params.token !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  res.json({ ok: true, uploaded: req.files?.length || 0 });
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function confNum() {
