@@ -8,6 +8,7 @@ const em       = require("./emails");
 const app  = express();
 const PORT = process.env.PORT || 3001;
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "changeme";
+const DEPLOY_TIME = new Date().toISOString();
 
 app.use(cors());
 app.use(express.json());
