@@ -170,7 +170,7 @@
       .play:hover{transform:scale(1.14);background:rgba(255,255,255,.34)}
       .tri{width:0;height:0;border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:16px solid rgba(255,255,255,.9);margin-left:4px}
 
-      .cat-tag{padding:4px 14px;border-radius:100px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff}
+      .cat-tag{padding:4px 14px;border-radius:100px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;pointer-events:auto}
       .hero-stack>*{opacity:0;animation:fadeUp .72s ease forwards}
       .hero-stack>*:nth-child(1){animation-delay:.22s}
       .hero-stack>*:nth-child(2){animation-delay:.44s}
@@ -303,7 +303,7 @@
             : null
           }
           {(label || catTag) && (
-            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-end",justifyContent:"flex-start",padding:18}}>
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-end",justifyContent:"flex-start",padding:14,pointerEvents:"none"}}>
               {catTag && <span className="cat-tag">{catTag}</span>}
             </div>
           )}
