@@ -192,6 +192,42 @@ app.get("/receipt/:conf", async (req, res) => {
   res.json(rows[0]);
 });
 
+// ── GET /settings  (Public — site reads these) ───────────────────────────────
+app.get("/settings", async (req, res) => {
+  const { rows } = await pool.query("SELECT key, value FROM settings");
+  const out = {};
+  rows.forEach(r => {
+    try { out[r.key] = JSON.parse(r.value); } catch { out[r.key] = r.value; }
+  });
+  res.json(out);
+});
+
+// ── PUT /settings  (Admin — update one or many keys) ─────────────────────────
+app.put("/settings", async (req, res) => {
+  const { secret, ...updates } = req.body;
+  if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  try {
+    for (const [key, value] of Object.entries(updates)) {
+      const val = typeof value === "string" ? value : JSON.stringify(value);
+      await pool.query(
+        "INSERT INTO settings (key,value) VALUES($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2",
+        [key, val]
+      );
+    }
+    res.json({ ok: true });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── DELETE /booking/:conf  (Admin — cancel) ───────────────────────────────────
+app.delete("/booking/:conf", async (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) return res.status(401).json({ ok: false });
+  await pool.query("UPDATE bookings SET status='cancelled', updated_at=NOW() WHERE conf=$1", [req.params.conf]);
+  res.json({ ok: true });
+});
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 init().then(() => {
   app.listen(PORT, () => console.log(`RTM API running on :${PORT}`));

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RTM Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;-webkit-font-smoothing:antialiased}
+    input,select,textarea,button{font-family:inherit}
+    :root{--o:#FF7835;--p:#FF3D6B;--pu:#7B2FBE;--ink:#0D0D0D}
+
+    /* ── Login ───────────────────────────────────────────────── */
+    #login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:18px;padding:24px}
+    .login-logo{height:60px;filter:brightness(0) invert(1);margin-bottom:4px}
+    .login-title{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.06em;background:linear-gradient(135deg,#FF7835,#FF3D6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .login-sub{color:#555;font-size:14px;margin-top:-10px}
+    .login-box{width:100%;max-width:380px;background:#111;border:1px solid #222;border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:14px}
+    .login-box input{width:100%;padding:13px 16px;border:1px solid #2a2a2a;border-radius:10px;background:#1a1a1a;color:#fff;font-size:15px;outline:none;transition:border-color .2s}
+    .login-box input:focus{border-color:#FF7835}
+    .btn-grad{padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#FF7835,#FF3D6B);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;cursor:pointer;transition:filter .2s}
+    .btn-grad:hover{filter:brightness(1.1)}
+    .login-err{color:#FF3D6B;font-size:13px;text-align:center;min-height:18px}
+
+    /* ── App shell ───────────────────────────────────────────── */
+    #app{display:none;min-height:100vh}
+    .sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:#111;border-right:1px solid #1e1e1e;display:flex;flex-direction:column;z-index:50}
+    .sb-logo{padding:20px 20px 16px;border-bottom:1px solid #1e1e1e}
+    .sb-logo img{height:36px;filter:brightness(0) invert(1)}
+    .sb-logo span{display:block;font-size:10px;letter-spacing:.12em;color:#444;text-transform:uppercase;margin-top:4px}
+    .sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:4px}
+    .sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;color:#666;cursor:pointer;transition:all .15s;border:none;background:transparent;width:100%;text-align:left}
+    .sb-item svg{width:16px;height:16px;flex-shrink:0}
+    .sb-item:hover{background:#1a1a1a;color:#ccc}
+    .sb-item.on{background:linear-gradient(135deg,rgba(255,120,53,.15),rgba(255,61,107,.15));color:#FF7835;border:1px solid rgba(255,120,53,.2)}
+    .sb-item .badge{margin-left:auto;background:#FF7835;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;line-height:1.4}
+    .sb-bottom{padding:16px;border-top:1px solid #1e1e1e}
+    .sb-out{width:100%;padding:10px;border:1px solid #2a2a2a;border-radius:8px;background:transparent;color:#555;font-size:13px;cursor:pointer}
+    .sb-out:hover{border-color:#444;color:#888}
+
+    /* ── Main area ───────────────────────────────────────────── */
+    .main{margin-left:220px;padding:32px;min-height:100vh}
+    .page-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.04em;margin-bottom:4px}
+    .page-sub{color:#555;font-size:14px;margin-bottom:28px}
+
+    /* ── Stats ───────────────────────────────────────────────── */
+    .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+    .stat{background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:18px}
+    .stat .n{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.04em;background:linear-gradient(135deg,#FF7835,#FF3D6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+    .stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#444;margin-top:4px}
+
+    /* ── Cards / tables ──────────────────────────────────────── */
+    .card{background:#111;border:1px solid #1e1e1e;border-radius:14px;margin-bottom:16px;overflow:hidden}
+    .card-hd{display:flex;align-items:center;gap:12px;padding:15px 18px;cursor:pointer;user-select:none}
+    .card-hd:hover{background:#161616}
+    .conf-tag{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.06em;color:#FF7835;min-width:108px}
+    .bname{flex:1;font-weight:500;font-size:14px}
+    .bsub{color:#555;font-size:12px;font-weight:400}
+    .bdate{color:#555;font-size:12px;min-width:110px;text-align:right}
+    .chip{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+    .c-pending{background:rgba(255,120,53,.15);color:#FF7835}
+    .c-confirmed{background:rgba(34,197,94,.15);color:#22c55e}
+    .c-rescheduled{background:rgba(129,140,248,.15);color:#818cf8}
+    .c-cancelled{background:rgba(248,113,113,.15);color:#f87171}
+    .chev{width:16px;height:16px;color:#444;transition:transform .25s;flex-shrink:0}
+    .chev.open{transform:rotate(180deg)}
+    .card-bd{display:none;padding:0 18px 18px;border-top:1px solid #1a1a1a}
+    .card-bd.open{display:block}
+    .dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:14px}
+    .di label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#444;display:block;margin-bottom:2px}
+    .di span{font-size:13px;color:#ccc;word-break:break-word}
+    .acts{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+    .btn{padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+    .btn-green{border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff}
+    .btn-green:hover{filter:brightness(1.1)}
+    .btn-ind{border:1px solid #818cf8;background:transparent;color:#818cf8}
+    .btn-ind:hover{background:rgba(129,140,248,.1)}
+    .btn-or{border:1px solid #FF7835;background:transparent;color:#FF7835}
+    .btn-or:hover{background:rgba(255,120,53,.1)}
+    .btn-red{border:1px solid #f87171;background:transparent;color:#f87171}
+    .btn-red:hover{background:rgba(248,113,113,.1)}
+
+    /* ── Settings ────────────────────────────────────────────── */
+    .settings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+    .s-section{background:#111;border:1px solid #1e1e1e;border-radius:14px;padding:22px}
+    .s-section h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em;color:#FF7835;margin-bottom:16px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:6px}
+    .field input,.field select{width:100%;padding:10px 13px;border:1px solid #2a2a2a;border-radius:8px;background:#1a1a1a;color:#fff;font-size:14px;outline:none;transition:border-color .2s}
+    .field input:focus,.field select:focus{border-color:#FF7835}
+    .field .hint{font-size:11px;color:#444;margin-top:4px}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1a1a1a}
+    .toggle-row:last-child{border-bottom:none}
+    .toggle-row .tname{font-size:14px;color:#ccc}
+    .toggle-row .tsub{font-size:12px;color:#444}
+    .toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+    .toggle input{opacity:0;width:0;height:0}
+    .slider{position:absolute;inset:0;background:#2a2a2a;border-radius:24px;transition:.2s;cursor:pointer}
+    .slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#555;border-radius:50%;transition:.2s}
+    input:checked+.slider{background:linear-gradient(135deg,#FF7835,#FF3D6B)}
+    input:checked+.slider:before{transform:translateX(18px);background:#fff}
+    .save-btn{width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#FF7835,#FF3D6B);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em;cursor:pointer;margin-top:4px}
+    .save-btn:hover{filter:brightness(1.1)}
+
+    /* Addon editor */
+    .addon-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1a1a1a}
+    .addon-row:last-child{border-bottom:none}
+    .addon-row input[type=text]{flex:1;padding:7px 10px;border:1px solid #2a2a2a;border-radius:6px;background:#1a1a1a;color:#fff;font-size:13px;outline:none}
+    .addon-row input[type=text]:focus{border-color:#FF7835}
+    .addon-del{background:none;border:none;color:#444;cursor:pointer;padding:4px;font-size:16px;line-height:1}
+    .addon-del:hover{color:#f87171}
+    .add-row-btn{margin-top:10px;padding:8px 14px;border:1px dashed #333;border-radius:8px;background:transparent;color:#555;font-size:13px;cursor:pointer;width:100%;transition:all .15s}
+    .add-row-btn:hover{border-color:#FF7835;color:#FF7835}
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+    .modal-bg.open{display:flex}
+    .modal{background:#111;border:1px solid #2a2a2a;border-radius:16px;padding:28px;width:100%;max-width:440px}
+    .modal h3{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.06em;margin-bottom:20px;background:linear-gradient(135deg,#FF7835,#FF3D6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .modal .field label{color:#666}
+    .modal-btns{display:flex;gap:10px;margin-top:20px}
+    .modal-btns button{flex:1;padding:12px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer}
+    .btn-do{border:none;background:linear-gradient(135deg,#FF7835,#FF3D6B);color:#fff}
+    .btn-cancel-m{border:1px solid #333;background:transparent;color:#666}
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    .toast{position:fixed;bottom:24px;right:24px;background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:13px 18px;font-size:13px;z-index:400;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.ok{border-color:#22c55e;color:#22c55e}
+    .toast.err{border-color:#f87171;color:#f87171}
+
+    /* ── Filter tabs ─────────────────────────────────────────── */
+    .ftabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+    .ftab{padding:7px 16px;border:1px solid #2a2a2a;border-radius:20px;background:transparent;color:#555;font-size:13px;cursor:pointer;transition:all .15s}
+    .ftab.on{background:linear-gradient(135deg,#FF7835,#FF3D6B);border-color:transparent;color:#fff;font-weight:600}
+    .ftab:hover:not(.on){border-color:#444;color:#aaa}
+
+    /* ── Empty ───────────────────────────────────────────────── */
+    .empty{text-align:center;padding:50px 20px;color:#333;font-size:14px}
+
+    /* ── Mobile ──────────────────────────────────────────────── */
+    .mob-bar{display:none;align-items:center;justify-content:space-between;padding:14px 18px;background:#111;border-bottom:1px solid #1e1e1e;position:sticky;top:0;z-index:60}
+    .mob-bar img{height:32px;filter:brightness(0) invert(1)}
+    .mob-menu-btn{background:none;border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;color:#aaa;cursor:pointer;font-size:18px;line-height:1}
+    .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:49}
+    .mob-overlay.open{display:block}
+
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%);transition:transform .25s}
+      .sidebar.open{transform:translateX(0)}
+      .main{margin-left:0;padding:18px}
+      .mob-bar{display:flex}
+      .settings-grid{grid-template-columns:1fr}
+      .stats{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ──────────────────────────────────────────────────── -->
+<div id="login">
+  <img class="login-logo" src="https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG" alt="RT Media" onerror="this.style.display='none'"/>
+  <div class="login-title">RTM PORTAL</div>
+  <div class="login-sub">Studio management dashboard</div>
+  <div class="login-box">
+    <input type="password" id="pwInput" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-grad" onclick="doLogin()">ENTER PORTAL</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────────── -->
+<div id="app">
+  <!-- Mobile top bar -->
+  <div class="mob-bar">
+    <img src="https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG" alt="RTM" onerror="this.style.display='none'"/>
+    <button class="mob-menu-btn" onclick="toggleMobMenu()">☰</button>
+  </div>
+  <div class="mob-overlay" id="mobOverlay" onclick="closeMobMenu()"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <img src="https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG" alt="RTM" onerror="this.style.display='none'"/>
+      <span>Admin Portal</span>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item on" onclick="showPage('bookings',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Bookings <span class="badge" id="pendingBadge" style="display:none">0</span>
+      </button>
+      <button class="sb-item" onclick="showPage('services',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Services
+      </button>
+      <button class="sb-item" onclick="showPage('pricing',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Pricing
+      </button>
+      <button class="sb-item" onclick="showPage('addons',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Add-ons
+      </button>
+      <button class="sb-item" onclick="showPage('studio',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Studio Info
+      </button>
+    </nav>
+    <div class="sb-bottom">
+      <button class="sb-out" onclick="logout()">← Log out</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- BOOKINGS PAGE -->
+    <div id="page-bookings">
+      <div class="page-title">Bookings</div>
+      <div class="page-sub">Manage CYC rentals and production inquiries</div>
+      <div class="stats" id="bStats"></div>
+      <div class="ftabs">
+        <button class="ftab on" onclick="filterBookings('all',this)">All</button>
+        <button class="ftab" onclick="filterBookings('pending',this)">Pending</button>
+        <button class="ftab" onclick="filterBookings('confirmed',this)">Confirmed</button>
+        <button class="ftab" onclick="filterBookings('rescheduled',this)">Rescheduled</button>
+        <button class="ftab" onclick="filterBookings('production',this)">Production</button>
+      </div>
+      <div id="bList"></div>
+    </div>
+
+    <!-- SERVICES PAGE -->
+    <div id="page-services" style="display:none">
+      <div class="page-title">Services</div>
+      <div class="page-sub">Enable or disable booking types visible on the website</div>
+      <div class="s-section" style="max-width:500px">
+        <h3>Active Services</h3>
+        <div id="serviceToggles"></div>
+        <button class="save-btn" style="margin-top:18px" onclick="saveServices()">SAVE SERVICES</button>
+      </div>
+    </div>
+
+    <!-- PRICING PAGE -->
+    <div id="page-pricing" style="display:none">
+      <div class="page-title">Pricing</div>
+      <div class="page-sub">Update rates — changes go live on the website instantly</div>
+      <div class="settings-grid">
+        <div class="s-section">
+          <h3>CYC Wall Rates</h3>
+          <div class="field">
+            <label>Hourly Rate (CAD)</label>
+            <input type="number" id="set_hourly_rate" placeholder="100"/>
+            <div class="hint">Base rate per hour, before tax</div>
+          </div>
+          <div class="field">
+            <label>Cleaning Fee (CAD)</label>
+            <input type="number" id="set_cleaning_fee" placeholder="10"/>
+          </div>
+          <div class="field">
+            <label>HST Rate</label>
+            <input type="number" id="set_hst_rate" step="0.01" placeholder="0.13"/>
+            <div class="hint">Ontario HST = 0.13</div>
+          </div>
+          <button class="save-btn" onclick="savePricing()">SAVE PRICING</button>
+        </div>
+        <div class="s-section">
+          <h3>Booking Rules</h3>
+          <div class="field">
+            <label>Minimum Hours</label>
+            <input type="number" id="set_min_hours" placeholder="2"/>
+          </div>
+          <div class="field">
+            <label>Maximum Hours</label>
+            <input type="number" id="set_max_hours" placeholder="12"/>
+          </div>
+          <div class="field">
+            <label>Studio Opens (hour, 24h)</label>
+            <input type="number" id="set_studio_open" placeholder="9"/>
+            <div class="hint">9 = 9:00 AM</div>
+          </div>
+          <div class="field">
+            <label>Studio Closes (hour, 24h)</label>
+            <input type="number" id="set_studio_close" placeholder="22"/>
+            <div class="hint">22 = 10:00 PM</div>
+          </div>
+          <button class="save-btn" onclick="saveRules()">SAVE RULES</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD-ONS PAGE -->
+    <div id="page-addons" style="display:none">
+      <div class="page-title">Add-ons</div>
+      <div class="page-sub">Edit add-ons available for CYC Wall bookings and Production crew</div>
+      <div class="settings-grid">
+        <div class="s-section">
+          <h3>CYC Wall Add-ons</h3>
+          <div id="cycAddonList"></div>
+          <button class="add-row-btn" onclick="addCycAddon()">+ Add CYC Add-on</button>
+          <button class="save-btn" style="margin-top:12px" onclick="saveCycAddons()">SAVE CYC ADD-ONS</button>
+        </div>
+        <div class="s-section">
+          <h3>Production Crew</h3>
+          <div id="crewList"></div>
+          <button class="add-row-btn" onclick="addCrewAddon()">+ Add Crew Role</button>
+          <button class="save-btn" style="margin-top:12px" onclick="saveCrewAddons()">SAVE CREW ROLES</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDIO PAGE -->
+    <div id="page-studio" style="display:none">
+      <div class="page-title">Studio Info</div>
+      <div class="page-sub">Details that appear in emails and receipts</div>
+      <div class="s-section" style="max-width:500px">
+        <h3>Contact Details</h3>
+        <div class="field">
+          <label>Studio Name</label>
+          <input type="text" id="set_studio_name" placeholder="Round Table Media"/>
+        </div>
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="set_studio_city" placeholder="Toronto, Ontario"/>
+        </div>
+        <div class="field">
+          <label>Booking Email (shown to clients)</label>
+          <input type="email" id="set_studio_email" placeholder="rtablemedia@gmail.com"/>
+        </div>
+        <button class="save-btn" onclick="saveStudio()">SAVE STUDIO INFO</button>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Reschedule modal -->
+<div class="modal-bg" id="reschedModal">
+  <div class="modal">
+    <h3>Reschedule Booking</h3>
+    <input type="hidden" id="reschedConf"/>
+    <div class="field"><label>New Date</label><input type="date" id="reschedDate"/></div>
+    <div class="field"><label>New Start Time (e.g. 2:00 PM)</label><input type="text" id="reschedTime" placeholder="2:00 PM"/></div>
+    <div class="modal-btns">
+      <button class="btn-cancel-m" onclick="closeModal('reschedModal')">Cancel</button>
+      <button class="btn-do" onclick="doReschedule()">Send to Client →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API    = "https://rtm-api-abop.onrender.com";
+const SITE   = "https://rtm-api-abop.onrender.com";
+let secret   = "";
+let bookings = [];
+let settings = {};
+let bFilter  = "all";
+
+/* ── Auth ──────────────────────────────────────────────────────── */
+async function doLogin() {
+  const pw = document.getElementById("pwInput").value.trim();
+  if (!pw) return;
+  document.getElementById("loginErr").textContent = "";
+  try {
+    const r = await fetch(`${API}/bookings?secret=${encodeURIComponent(pw)}`);
+    if (r.status === 401) { document.getElementById("loginErr").textContent = "Wrong password."; return; }
+    secret = pw;
+    bookings = await r.json();
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display   = "block";
+    await loadSettings();
+    renderBookings();
+  } catch(e) {
+    document.getElementById("loginErr").textContent = "Connection error: " + e.message;
+  }
+}
+
+function logout() {
+  secret = ""; bookings = []; settings = {};
+  document.getElementById("app").style.display   = "none";
+  document.getElementById("login").style.display = "flex";
+  document.getElementById("pwInput").value = "";
+}
+
+/* ── Navigation ────────────────────────────────────────────────── */
+function showPage(name, btn) {
+  document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = "none");
+  document.getElementById("page-" + name).style.display = "block";
+  document.querySelectorAll(".sb-item").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on");
+  closeMobMenu();
+  if (name === "pricing") fillPricingFields();
+  if (name === "addons")  fillAddonFields();
+  if (name === "services") fillServiceToggles();
+  if (name === "studio")  fillStudioFields();
+}
+
+function toggleMobMenu() {
+  document.getElementById("sidebar").classList.toggle("open");
+  document.getElementById("mobOverlay").classList.toggle("open");
+}
+function closeMobMenu() {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("mobOverlay").classList.remove("open");
+}
+
+/* ── Settings ──────────────────────────────────────────────────── */
+async function loadSettings() {
+  const r = await fetch(`${API}/settings`);
+  settings = await r.json();
+}
+
+async function saveSetting(updates) {
+  const r = await fetch(`${API}/settings`, {
+    method: "PUT",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ secret, ...updates })
+  });
+  const d = await r.json();
+  if (!d.ok) throw new Error(d.error || "Failed");
+  await loadSettings();
+}
+
+function fillPricingFields() {
+  ["hourly_rate","cleaning_fee","hst_rate","min_hours","max_hours","studio_open","studio_close"].forEach(k => {
+    const el = document.getElementById("set_" + k);
+    if (el) el.value = settings[k] ?? "";
+  });
+}
+
+async function savePricing() {
+  try {
+    await saveSetting({ hourly_rate: document.getElementById("set_hourly_rate").value, cleaning_fee: document.getElementById("set_cleaning_fee").value, hst_rate: document.getElementById("set_hst_rate").value });
+    toast("Pricing updated ✓", "ok");
+  } catch(e) { toast("Error: "+e.message,"err"); }
+}
+async function saveRules() {
+  try {
+    await saveSetting({ min_hours: document.getElementById("set_min_hours").value, max_hours: document.getElementById("set_max_hours").value, studio_open: document.getElementById("set_studio_open").value, studio_close: document.getElementById("set_studio_close").value });
+    toast("Rules updated ✓", "ok");
+  } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+function fillStudioFields() {
+  ["studio_name","studio_city","studio_email"].forEach(k => {
+    const el = document.getElementById("set_" + k);
+    if (el) el.value = settings[k] ?? "";
+  });
+}
+async function saveStudio() {
+  try {
+    await saveSetting({ studio_name: document.getElementById("set_studio_name").value, studio_city: document.getElementById("set_studio_city").value, studio_email: document.getElementById("set_studio_email").value });
+    toast("Studio info updated ✓", "ok");
+  } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+/* ── Services ──────────────────────────────────────────────────── */
+function fillServiceToggles() {
+  const svcs = Array.isArray(settings.services) ? settings.services : [];
+  document.getElementById("serviceToggles").innerHTML = svcs.map((s,i) => `
+    <div class="toggle-row">
+      <div><div class="tname">${s.label}</div><div class="tsub">ID: ${s.id}</div></div>
+      <label class="toggle"><input type="checkbox" id="svc_${i}" ${s.enabled?"checked":""}/>
+      <span class="slider"></span></label>
+    </div>
+  `).join("");
+}
+async function saveServices() {
+  const svcs = Array.isArray(settings.services) ? settings.services : [];
+  svcs.forEach((s,i) => { s.enabled = document.getElementById("svc_"+i)?.checked ?? true; });
+  try { await saveSetting({ services: svcs }); toast("Services updated ✓","ok"); } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+/* ── Add-ons ───────────────────────────────────────────────────── */
+function fillAddonFields() {
+  const cyc  = Array.isArray(settings.cyc_addons)  ? settings.cyc_addons  : [];
+  const crew = Array.isArray(settings.crew_addons) ? settings.crew_addons : [];
+  document.getElementById("cycAddonList").innerHTML  = cyc.map((a,i)  => cycAddonRow(a,i)).join("");
+  document.getElementById("crewList").innerHTML       = crew.map((a,i) => crewRow(a,i)).join("");
+}
+function cycAddonRow(a, i) {
+  return `<div class="addon-row" id="cad_${i}">
+    <input type="text" value="${a.label||""}" placeholder="Label" oninput="settings.cyc_addons[${i}].label=this.value"/>
+    <label class="toggle" title="Enabled"><input type="checkbox" ${a.enabled?"checked":""} onchange="settings.cyc_addons[${i}].enabled=this.checked"/>
+    <span class="slider"></span></label>
+    <button class="addon-del" onclick="removeCycAddon(${i})">✕</button>
+  </div>`;
+}
+function crewRow(a, i) {
+  return `<div class="addon-row" id="crd_${i}">
+    <input type="text" value="${a.label||""}" placeholder="Role" oninput="settings.crew_addons[${i}].label=this.value"/>
+    <input type="text" value="${a.rate||""}" placeholder="Rate" style="max-width:120px" oninput="settings.crew_addons[${i}].rate=this.value"/>
+    <label class="toggle"><input type="checkbox" ${a.enabled?"checked":""} onchange="settings.crew_addons[${i}].enabled=this.checked"/>
+    <span class="slider"></span></label>
+    <button class="addon-del" onclick="removeCrewAddon(${i})">✕</button>
+  </div>`;
+}
+function addCycAddon()  { if(!settings.cyc_addons) settings.cyc_addons=[]; settings.cyc_addons.push({id:"new_"+Date.now(),label:"",enabled:true}); fillAddonFields(); }
+function addCrewAddon() { if(!settings.crew_addons) settings.crew_addons=[]; settings.crew_addons.push({label:"",rate:"Rate on quote",enabled:true}); fillAddonFields(); }
+function removeCycAddon(i)  { settings.cyc_addons.splice(i,1);  fillAddonFields(); }
+function removeCrewAddon(i) { settings.crew_addons.splice(i,1); fillAddonFields(); }
+async function saveCycAddons()  { try { await saveSetting({cyc_addons:settings.cyc_addons});  toast("CYC add-ons saved ✓","ok"); } catch(e){toast("Error:"+e.message,"err");} }
+async function saveCrewAddons() { try { await saveSetting({crew_addons:settings.crew_addons}); toast("Crew roles saved ✓","ok"); } catch(e){toast("Error:"+e.message,"err");} }
+
+/* ── Bookings ──────────────────────────────────────────────────── */
+function renderBookings() {
+  // Stats
+  const total=bookings.length, pend=bookings.filter(b=>b.status==="pending").length;
+  const conf=bookings.filter(b=>b.status==="confirmed").length;
+  const rev=bookings.filter(b=>b.status==="confirmed"&&b.grand_total).reduce((s,b)=>s+parseFloat(b.grand_total||0),0);
+  document.getElementById("bStats").innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">Total</div></div>
+    <div class="stat"><div class="n">${pend}</div><div class="l">Pending</div></div>
+    <div class="stat"><div class="n">${conf}</div><div class="l">Confirmed</div></div>
+    <div class="stat"><div class="n">$${rev.toFixed(0)}</div><div class="l">Revenue</div></div>
+  `;
+  // Badge
+  const badge = document.getElementById("pendingBadge");
+  badge.textContent = pend; badge.style.display = pend ? "inline" : "none";
+  // List
+  filterBookings(bFilter, document.querySelector('.ftab.on'));
+}
+
+function filterBookings(f, btn) {
+  bFilter = f;
+  document.querySelectorAll(".ftab").forEach(b=>b.classList.remove("on"));
+  if(btn) btn.classList.add("on");
+  let list = bookings;
+  if(f==="pending")    list = list.filter(b=>b.status==="pending");
+  if(f==="confirmed")  list = list.filter(b=>b.status==="confirmed");
+  if(f==="rescheduled")list = list.filter(b=>b.status==="rescheduled");
+  if(f==="production") list = list.filter(b=>b.type==="production");
+  const el = document.getElementById("bList");
+  if(!list.length){el.innerHTML='<div class="empty">No bookings here.</div>';return;}
+  el.innerHTML = list.map(b=>bookingCard(b)).join("");
+}
+
+function bookingCard(b) {
+  const isCyc = b.type==="cyc";
+  const dt    = b.date_str ? new Date(b.date_str+"T12:00:00").toLocaleDateString("en-CA",{weekday:"short",month:"short",day:"numeric",year:"numeric"}) : "—";
+  const cr    = new Date(b.created_at).toLocaleDateString("en-CA",{month:"short",day:"numeric"});
+  const sc    = {pending:"c-pending",confirmed:"c-confirmed",rescheduled:"c-rescheduled",cancelled:"c-cancelled"}[b.status]||"c-pending";
+  const det = isCyc ? `
+    <div class="di"><label>Date</label><span>${dt}</span></div>
+    <div class="di"><label>Time</label><span>${b.start_time||"—"}</span></div>
+    <div class="di"><label>Duration</label><span>${b.dur_label||""} (${b.hrs||""}h)</span></div>
+    <div class="di"><label>Add-ons</label><span>${b.addons||"None"}</span></div>
+    <div class="di"><label>Payment</label><span>${b.pay_method||"—"}</span></div>
+    <div class="di"><label>Grand Total</label><span>$${parseFloat(b.grand_total||0).toFixed(2)}</span></div>
+    <div class="di"><label>Deposit</label><span>$${parseFloat(b.deposit||0).toFixed(2)}</span></div>
+    <div class="di"><label>Balance on Arrival</label><span>$${parseFloat(b.balance_due||0).toFixed(2)}</span></div>
+  ` : `
+    <div class="di"><label>Project</label><span>${b.project_type||"—"}</span></div>
+    <div class="di"><label>Crew</label><span>${b.crew_addons||"None"}</span></div>
+    <div class="di"><label>Message</label><span>${(b.message||"—").slice(0,120)}</span></div>
+  `;
+  const acts = isCyc ? `
+    ${b.status!=="confirmed"?`<button class="btn btn-green" onclick="doConfirm('${b.conf}')">✓ Confirm</button>`:""}
+    <button class="btn btn-ind" onclick="openReschedule('${b.conf}')">↗ Reschedule</button>
+    <button class="btn btn-or" onclick="window.open('${SITE}/receipt.html?conf=${b.conf}','_blank')">🧾 Receipt</button>
+    <button class="btn btn-red" onclick="doCancel('${b.conf}')">✕ Cancel</button>
+  ` : `
+    ${b.status!=="confirmed"?`<button class="btn btn-green" onclick="doConfirm('${b.conf}')">✓ Received</button>`:""}
+  `;
+  return `<div class="card" id="bcard_${b.conf}">
+    <div class="card-hd" onclick="toggleCard('${b.conf}')">
+      <span class="conf-tag">${b.conf}</span>
+      <span class="bname">${b.name} <span class="bsub">${b.email}</span></span>
+      <span class="bdate">${isCyc?dt:"Inquiry · "+cr}</span>
+      <span class="chip ${sc}">${b.status}</span>
+      <svg class="chev" id="chev_${b.conf}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="card-bd" id="cbd_${b.conf}">
+      <div class="dg">
+        <div class="di"><label>Phone</label><span>${b.phone||"—"}</span></div>
+        <div class="di"><label>Submitted</label><span>${new Date(b.created_at).toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})}</span></div>
+        ${det}
+      </div>
+      <div class="acts">${acts}</div>
+    </div>
+  </div>`;
+}
+
+function toggleCard(conf) {
+  document.getElementById("cbd_"+conf).classList.toggle("open");
+  document.getElementById("chev_"+conf).classList.toggle("open");
+}
+
+async function reloadBookings() {
+  const r = await fetch(`${API}/bookings?secret=${encodeURIComponent(secret)}`);
+  bookings = await r.json();
+  renderBookings();
+}
+
+async function doConfirm(conf) {
+  try {
+    const r = await fetch(`${API}/confirm`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conf,secret})});
+    const d = await r.json(); if(!d.ok) throw new Error(d.error);
+    toast("Confirmed — client emailed ✓","ok"); await reloadBookings();
+  } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+async function doCancel(conf) {
+  if(!confirm("Cancel booking "+conf+"?")) return;
+  try {
+    const r = await fetch(`${API}/booking/${conf}?secret=${encodeURIComponent(secret)}`,{method:"DELETE"});
+    const d = await r.json(); if(!d.ok) throw new Error(d.error);
+    toast("Booking cancelled","ok"); await reloadBookings();
+  } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+function openReschedule(conf) {
+  document.getElementById("reschedConf").value = conf;
+  document.getElementById("reschedDate").value = "";
+  document.getElementById("reschedTime").value = "";
+  document.getElementById("reschedModal").classList.add("open");
+}
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+async function doReschedule() {
+  const conf=document.getElementById("reschedConf").value;
+  const new_date=document.getElementById("reschedDate").value;
+  const new_time=document.getElementById("reschedTime").value.trim();
+  if(!new_date||!new_time){toast("Fill in date and time","err");return;}
+  try {
+    const r=await fetch(`${API}/reschedule`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conf,secret,new_date,new_time})});
+    const d=await r.json(); if(!d.ok) throw new Error(d.error);
+    closeModal("reschedModal"); toast("Reschedule sent to client ✓","ok"); await reloadBookings();
+  } catch(e){toast("Error: "+e.message,"err");}
+}
+
+/* ── Toast ─────────────────────────────────────────────────────── */
+function toast(msg, type) {
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show "+type;
+  setTimeout(()=>t.classList.remove("show"),3200);
+}
+
+/* Close modals on backdrop click */
+document.getElementById("reschedModal").addEventListener("click",function(e){if(e.target===this)closeModal("reschedModal");});
+</script>
+</body>
+</html>

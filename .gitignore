@@ -2,5 +2,4 @@ node_modules/
 server/node_modules/
 .env
 server/.env
-*.mov
-*.mp4
+Web Reel.mov
