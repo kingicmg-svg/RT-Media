@@ -7,6 +7,43 @@ const pool = new Pool({
 
 async function init() {
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id          SERIAL PRIMARY KEY,
+      username    TEXT UNIQUE NOT NULL DEFAULT 'admin',
+      password    TEXT NOT NULL,
+      email       TEXT NOT NULL,
+      twofa_enabled BOOLEAN DEFAULT false,
+      last_login  TIMESTAMPTZ,
+      created_at  TIMESTAMPTZ DEFAULT NOW(),
+      updated_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS twofa_codes (
+      id          SERIAL PRIMARY KEY,
+      admin_id    INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+      code        TEXT NOT NULL,
+      session_id  TEXT NOT NULL,
+      expires_at  TIMESTAMPTZ NOT NULL,
+      verified    BOOLEAN DEFAULT false,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS login_sessions (
+      id          SERIAL PRIMARY KEY,
+      admin_id    INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+      session_token TEXT UNIQUE NOT NULL,
+      ip_address  TEXT,
+      user_agent  TEXT,
+      expires_at  TIMESTAMPTZ NOT NULL,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS login_history (
+      id          SERIAL PRIMARY KEY,
+      admin_id    INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+      ip_address  TEXT,
+      user_agent  TEXT,
+      success     BOOLEAN NOT NULL,
+      reason      TEXT,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS bookings (
       id          SERIAL PRIMARY KEY,
       conf        TEXT UNIQUE NOT NULL,
@@ -26,7 +63,6 @@ async function init() {
       grand_total NUMERIC,
       deposit     NUMERIC,
       balance_due NUMERIC,
-      -- production fields
       project_type TEXT,
       crew_addons  TEXT,
       message      TEXT,
@@ -62,6 +98,9 @@ async function init() {
       ('studio_city',   'Toronto, Ontario'),
       ('studio_email',  'rtablemedia@gmail.com')
     ON CONFLICT (key) DO NOTHING;
+    INSERT INTO admin_users (username, password, email, twofa_enabled) 
+    VALUES ('admin', 'rt_media26', 'rtablemedia@gmail.com', true)
+    ON CONFLICT (username) DO NOTHING;
   `);
   console.log("DB ready");
 }

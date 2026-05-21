@@ -237,6 +237,124 @@ app.delete("/booking/:conf", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── POST /login-password  (Admin login with password) ──────────────────────────
+app.post("/login-password", async (req, res) => {
+  try {
+    const { password } = req.body;
+    const { rows } = await pool.query("SELECT id, password, email, twofa_enabled FROM admin_users WHERE username='admin'");
+    if (!rows.length || rows[0].password !== password) {
+      await pool.query("INSERT INTO login_history (admin_id, success, reason) VALUES (1, false, 'Invalid password')", []);
+      return res.status(401).json({ ok: false, error: "Invalid password" });
+    }
+    const admin = rows[0];
+    if (admin.twofa_enabled) {
+      const code = Math.random().toString().slice(2, 8);
+      const sessionId = Math.random().toString(36).slice(2);
+      await pool.query(
+        "INSERT INTO twofa_codes (admin_id, code, session_id, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL '10 minutes')",
+        [admin.id, code, sessionId]
+      );
+      await em.send({
+        to: admin.email, toName: "Admin",
+        subject: "RTM Portal - 2FA Code",
+        html: `Your 2FA code is: <strong>${code}</strong><br>Valid for 10 minutes.`
+      });
+      return res.json({ ok: true, needs2fa: true, sessionId });
+    }
+    const sessionToken = Math.random().toString(36).slice(2);
+    await pool.query(
+      "INSERT INTO login_sessions (admin_id, session_token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
+      [admin.id, sessionToken]
+    );
+    await pool.query("UPDATE admin_users SET last_login=NOW() WHERE id=$1", [admin.id]);
+    res.json({ ok: true, sessionToken });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /verify-2fa  (Verify 2FA code) ────────────────────────────────────────
+app.post("/verify-2fa", async (req, res) => {
+  try {
+    const { sessionId, code } = req.body;
+    const { rows } = await pool.query(
+      "SELECT * FROM twofa_codes WHERE session_id=$1 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
+      [sessionId]
+    );
+    if (!rows.length || rows[0].code !== code) {
+      return res.status(401).json({ ok: false, error: "Invalid or expired code" });
+    }
+    await pool.query("UPDATE twofa_codes SET verified=true WHERE id=$1", [rows[0].id]);
+    const sessionToken = Math.random().toString(36).slice(2);
+    await pool.query(
+      "INSERT INTO login_sessions (admin_id, session_token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
+      [rows[0].admin_id, sessionToken]
+    );
+    await pool.query("UPDATE admin_users SET last_login=NOW() WHERE id=$1", [rows[0].admin_id]);
+    res.json({ ok: true, sessionToken });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /change-password  (Change admin password) ────────────────────────────
+app.post("/change-password", async (req, res) => {
+  try {
+    const { sessionToken, oldPassword, newPassword } = req.body;
+    const { rows: sessions } = await pool.query(
+      "SELECT admin_id FROM login_sessions WHERE session_token=$1 AND expires_at > NOW()",
+      [sessionToken]
+    );
+    if (!sessions.length) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    const { rows: users } = await pool.query(
+      "SELECT * FROM admin_users WHERE id=$1",
+      [sessions[0].admin_id]
+    );
+    if (!users.length || users[0].password !== oldPassword) {
+      return res.status(401).json({ ok: false, error: "Current password incorrect" });
+    }
+    await pool.query(
+      "UPDATE admin_users SET password=$1, updated_at=NOW() WHERE id=$2",
+      [newPassword, sessions[0].admin_id]
+    );
+    res.json({ ok: true, message: "Password changed successfully" });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /logout  (Admin logout) ────────────────────────────────────────────────
+app.post("/logout", async (req, res) => {
+  try {
+    const { sessionToken } = req.body;
+    await pool.query(
+      "DELETE FROM login_sessions WHERE session_token=$1",
+      [sessionToken]
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /security-info  (Get security settings) ────────────────────────────────
+app.get("/security-info", async (req, res) => {
+  try {
+    const { secret } = req.query;
+    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false });
+    const { rows: users } = await pool.query("SELECT id, username, email, twofa_enabled, last_login FROM admin_users");
+    const { rows: history } = await pool.query("SELECT * FROM login_history ORDER BY created_at DESC LIMIT 20");
+    res.json({ users: users[0], history });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 init().then(() => {
   app.listen(PORT, () => console.log(`RTM API running on :${PORT}`));
