@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express  = require("express");
 const cors     = require("cors");
+const path     = require("path");
 const { pool, init } = require("./db");
 const em       = require("./emails");
 
@@ -11,9 +12,9 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || "changeme";
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.json({ status: "ok", service: "Round Table Media API", version: "1.0" });
-});
+// Serve the entire website (index.html, admin.html, receipt.html, images, etc.)
+app.use(express.static(path.join(__dirname, "..")));
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function confNum() {
