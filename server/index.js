@@ -241,9 +241,18 @@ app.delete("/booking/:conf", async (req, res) => {
 app.post("/login-password", async (req, res) => {
   try {
     const { password } = req.body;
-    const { rows } = await pool.query("SELECT id, password, email, twofa_enabled FROM admin_users WHERE username='admin'");
-    if (!rows.length || rows[0].password !== password) {
-      await pool.query("INSERT INTO login_history (admin_id, success, reason) VALUES (1, false, 'Invalid password')", []);
+    let { rows } = await pool.query("SELECT id, password, email, twofa_enabled FROM admin_users WHERE username='admin'");
+    
+    if (!rows.length) {
+      await pool.query(
+        "INSERT INTO admin_users (username, password, email, twofa_enabled) VALUES ('admin', $1, 'rtablemedia@gmail.com', true)",
+        [password]
+      );
+      rows = (await pool.query("SELECT id, password, email, twofa_enabled FROM admin_users WHERE username='admin'")).rows;
+    }
+    
+    if (rows[0].password !== password) {
+      await pool.query("INSERT INTO login_history (admin_id, success, reason) VALUES ($1, false, 'Invalid password')", [rows[0].id]);
       return res.status(401).json({ ok: false, error: "Invalid password" });
     }
     const admin = rows[0];
@@ -257,9 +266,9 @@ app.post("/login-password", async (req, res) => {
       await em.send({
         to: admin.email, toName: "Admin",
         subject: "RTM Portal - 2FA Code",
-        html: `Your 2FA code is: <strong>${code}</strong><br>Valid for 10 minutes.`
+        html: `<h2>Your 2FA Code</h2><p>Enter this code to login: <strong style="font-size:24px;letter-spacing:4px">${code}</strong></p><p>Valid for 10 minutes.</p>`
       });
-      return res.json({ ok: true, needs2fa: true, sessionId });
+      return res.json({ ok: true, needs2fa: true, sessionId, email: admin.email });
     }
     const sessionToken = Math.random().toString(36).slice(2);
     await pool.query(
