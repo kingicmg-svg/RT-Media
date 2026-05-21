@@ -11,6 +11,10 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || "changeme";
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.json({ status: "ok", service: "Round Table Media API", version: "1.0" });
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function confNum() {
   return "RTM-" + Date.now().toString(36).toUpperCase().slice(-6);
