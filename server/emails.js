@@ -1,10 +1,10 @@
 const fetch = require("node-fetch");
 
 const BREVO_KEY    = process.env.BREVO_KEY;
-const FROM_NAME    = "Round Table Media";
-const FROM_EMAIL   = process.env.FROM_EMAIL || "bookings@roundtablemedia.ca";
+const FROM_NAME    = process.env.FROM_NAME    || "Round Table Media";
+const FROM_EMAIL   = process.env.FROM_EMAIL   || "rtablemedia@gmail.com";
 const STUDIO_EMAIL = process.env.STUDIO_EMAIL || "rtablemedia@gmail.com";
-const BASE_URL     = process.env.BASE_URL || "https://roundtablemedia.onrender.com";
+const BASE_URL     = process.env.BASE_URL     || "https://rtm-api-abop.onrender.com";
 
 async function send({ to, toName, subject, html }) {
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
