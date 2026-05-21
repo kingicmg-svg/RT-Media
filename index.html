@@ -273,8 +273,27 @@
     /* ── Blob thumbnail ─────────────────────────────────────────────────────── */
     function BlobThumb({ grad, br, height = 300, src, poster, label, catTag, children }) {
       const vidRef = React.useRef(null);
+      const blobRef = React.useRef(null);
+      const [isInView, setIsInView] = React.useState(false);
+
+      React.useEffect(() => {
+        const observer = new IntersectionObserver(([entry]) => {
+          setIsInView(entry.isIntersecting);
+          if (entry.isIntersecting && vidRef.current) {
+            vidRef.current.play().catch(() => {});
+          } else if (!entry.isIntersecting && vidRef.current) {
+            vidRef.current.pause();
+          }
+        }, { threshold: 0.5 });
+
+        if (blobRef.current) {
+          observer.observe(blobRef.current);
+        }
+        return () => observer.disconnect();
+      }, []);
+
       return (
-        <div className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:"pointer" }}
+        <div ref={blobRef} className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:"pointer" }}
           onMouseEnter={() => vidRef.current && vidRef.current.play()}
           onMouseLeave={() => vidRef.current && vidRef.current.pause()}
           onClick={() => src && window.open(src, '_blank')}
