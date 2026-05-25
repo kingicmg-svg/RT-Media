@@ -846,7 +846,7 @@ let cycWall = [];
 
 async function loadPortfolio() {
   try {
-    const r = await fetch('https://rtm-backend.onrender.com/portfolio');
+    const r = await fetch(`${API}/portfolio`);
     portfolio = await r.json();
     renderPortfolioList();
   } catch(e) { console.error(e); }
@@ -854,7 +854,7 @@ async function loadPortfolio() {
 
 async function loadCycWall() {
   try {
-    const r = await fetch('https://rtm-backend.onrender.com/cyc-wall');
+    const r = await fetch(`${API}/cyc-wall`);
     cycWall = await r.json();
     renderCycWallList();
   } catch(e) { console.error(e); }
@@ -959,7 +959,7 @@ async function uploadPortfolioFile(index) {
   const formData = new FormData();
   formData.append('file', input.files[0]);
   try {
-    const r = await fetch('https://rtm-backend.onrender.com/portfolio-upload/'+secret, { method: 'POST', body: formData });
+    const r = await fetch(`${API}/portfolio-upload/`+secret, { method: 'POST', body: formData });
     const d = await r.json();
     if (d.ok) {
       portfolio[index].thumbnail = d.url;
@@ -978,7 +978,7 @@ async function uploadCycWallFile(index) {
   const formData = new FormData();
   formData.append('file', input.files[0]);
   try {
-    const r = await fetch('https://rtm-backend.onrender.com/portfolio-upload/'+secret, { method: 'POST', body: formData });
+    const r = await fetch(`${API}/portfolio-upload/`+secret, { method: 'POST', body: formData });
     const d = await r.json();
     if (d.ok) {
       cycWall[index].url = d.url;
@@ -1012,7 +1012,7 @@ async function savePortfolio() {
       poster: p.poster || p.thumbnail || '',
       order: p.order || 0
     }));
-    const r = await fetch('https://rtm-backend.onrender.com/portfolio', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret, items: normalized }) });
+    const r = await fetch(`${API}/portfolio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret, items: normalized }) });
     const d = await r.json();
     if (d.ok) { toast("Portfolio saved ✓","ok"); } else { toast("Error: "+d.error,"err"); }
   } catch(e) { toast("Error: "+e.message,"err"); }
@@ -1020,7 +1020,7 @@ async function savePortfolio() {
 
 async function saveCycWall() {
   try {
-    const r = await fetch('https://rtm-backend.onrender.com/cyc-wall', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret, items: cycWall }) });
+    const r = await fetch(`${API}/cyc-wall`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret, items: cycWall }) });
     const d = await r.json();
     if (d.ok) { toast("Gallery saved ✓","ok"); } else { toast("Error: "+d.error,"err"); }
   } catch(e) { toast("Error: "+e.message,"err"); }
