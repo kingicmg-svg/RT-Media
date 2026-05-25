@@ -908,14 +908,21 @@ function renderPortfolioList() {
         </div>
       </div>
 
+      <!-- VIDEO UPLOAD -->
+      <label style="display:block;font-size:10px;text-transform:uppercase;font-weight:600;color:#666;margin-bottom:8px;letter-spacing:.08em">🎬 Upload Video</label>
+      <div style="background:rgba(255,61,107,.1);border:2px dashed #FF3D6B;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all .2s" onclick="document.getElementById('videofile_${i}').click()" onmouseover="this.style.background='rgba(255,61,107,.15)';this.style.borderColor='#ff6699'" onmouseout="this.style.background='rgba(255,61,107,.1)';this.style.borderColor='#FF3D6B'">
+        <input type="file" id="videofile_${i}" accept="video/*" onchange="uploadPortfolioVideo(${i})" style="display:none"/>
+        <div style="font-size:32px;margin-bottom:8px">🎬</div>
+        ${p.src ? `<div style="font-size:12px;color:#22c55e;font-weight:600">✓ ${p.src.split('/').pop()}</div><div style="font-size:11px;color:#666;margin-top:4px">Click to replace</div>` : '<div style="font-size:13px;color:#888">Click to upload video file</div>'}
+      </div>
+
       <!-- VIDEO URL / SELECT -->
       <div class="portfolio-field" style="margin-bottom:14px">
-        <label style="font-size:11px">🎬 Video File</label>
-        <select onchange="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;margin-bottom:8px;outline:none">
+        <label style="font-size:10px;text-transform:uppercase;font-weight:600;color:#666;margin-bottom:6px;letter-spacing:.08em;display:block">Or Select Existing</label>
+        <select onchange="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#0d0d0d;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;outline:none">
           <option value="">-- Select video --</option>
           ${availableVideos.map(v => `<option value="${v.url}" ${p.src===v.url?'selected':''}>${v.name}</option>`).join('')}
         </select>
-        <input type="text" placeholder="Or paste URL" value="${p.src||''}" oninput="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:11px;font-family:monospace"/>
       </div>
 
       <!-- DELETE -->
@@ -979,6 +986,25 @@ async function uploadPortfolioFile(index) {
       portfolio[index].poster = d.url;
       renderPortfolioList();
       toast("Thumbnail uploaded ✓","ok");
+    } else {
+      toast("Upload failed: "+d.error,"err");
+    }
+  } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+async function uploadPortfolioVideo(index) {
+  const input = document.getElementById('videofile_'+index);
+  if (!input.files.length) return;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  try {
+    toast("Uploading video...","ok");
+    const r = await fetch(`${API}/portfolio-upload/`+secret, { method: 'POST', body: formData });
+    const d = await r.json();
+    if (d.ok) {
+      portfolio[index].src = d.url;
+      renderPortfolioList();
+      toast("Video uploaded ✓","ok");
     } else {
       toast("Upload failed: "+d.error,"err");
     }
