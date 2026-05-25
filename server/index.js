@@ -388,6 +388,19 @@ app.post('/portfolio-upload/:secret', upload.single('file'), (req, res) => {
   });
 });
 
+// ── GET /videos-list  (List available video files) ──────────────────────────────
+app.get('/videos-list', (req, res) => {
+  try {
+    const files = fs.readdirSync(VIDEOS_DIR).filter(f => 
+      f.endsWith('.mp4') || f.endsWith('.mov') || f.endsWith('.webm') || f.endsWith('.avi')
+    );
+    res.json(files.map(f => ({ name: f, url: `/videos/${f}` })));
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── GET /portfolio  (Fetch portfolio items) ────────────────────────────────────
 app.get('/portfolio', async (req, res) => {
   try {

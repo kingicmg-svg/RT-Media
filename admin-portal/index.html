@@ -843,11 +843,13 @@ async function doReschedule() {
 /* ── Portfolio Management ──────────────────────────────────────── */
 let portfolio = [];
 let cycWall = [];
+let availableVideos = [];
 
 async function loadPortfolio() {
   try {
     const r = await fetch(`${API}/portfolio`);
     portfolio = await r.json();
+    await loadAvailableVideos();
     renderPortfolioList();
   } catch(e) { console.error(e); }
 }
@@ -858,6 +860,13 @@ async function loadCycWall() {
     cycWall = await r.json();
     renderCycWallList();
   } catch(e) { console.error(e); }
+}
+
+async function loadAvailableVideos() {
+  try {
+    const r = await fetch(`${API}/videos-list`);
+    availableVideos = await r.json();
+  } catch(e) { console.error('Failed to load videos:', e); }
 }
 
 function renderPortfolioList() {
@@ -899,10 +908,14 @@ function renderPortfolioList() {
         </div>
       </div>
 
-      <!-- VIDEO URL -->
+      <!-- VIDEO URL / SELECT -->
       <div class="portfolio-field" style="margin-bottom:14px">
-        <label style="font-size:11px">Video URL</label>
-        <input type="text" placeholder="/videos/file.mp4" value="${p.src||''}" oninput="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;font-family:monospace"/>
+        <label style="font-size:11px">🎬 Video File</label>
+        <select onchange="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;margin-bottom:8px;outline:none">
+          <option value="">-- Select video --</option>
+          ${availableVideos.map(v => `<option value="${v.url}" ${p.src===v.url?'selected':''}>${v.name}</option>`).join('')}
+        </select>
+        <input type="text" placeholder="Or paste URL" value="${p.src||''}" oninput="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:11px;font-family:monospace"/>
       </div>
 
       <!-- DELETE -->
