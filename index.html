@@ -240,21 +240,59 @@
     /* ── Hero video (ref-forced muted + play for all browsers) ─────────────── */
     function HeroVideo({ src }) {
       const ref = React.useRef(null);
+      const loopCount = React.useRef(0);
+      
       React.useEffect(() => {
         const v = ref.current;
         if (!v) return;
+        
+        // Reset loop counter on component mount
+        loopCount.current = 0;
+        
         v.muted = true;
         v.setAttribute('muted', '');
         v.controls = false;
-        v.onloadedmetadata = () => { v.play().catch(() => {}); };
-        if (v.readyState >= 1) v.play().catch(() => {});
+        v.currentTime = 0;
+        
+        // Handle loop: stop after 5 complete plays
+        v.onended = () => {
+          loopCount.current++;
+          if (loopCount.current < 5) {
+            v.currentTime = 0;
+            v.play().catch(() => {});
+          } else {
+            v.pause();
+          }
+        };
+        
+        // Play when metadata loads
+        v.onloadedmetadata = () => {
+          v.currentTime = 0;
+          v.play().catch(() => {});
+        };
+        
+        // Try to play immediately if already loaded
+        if (v.readyState >= 1) {
+          v.currentTime = 0;
+          v.play().catch(() => {});
+        }
+        
+        // Retry play every 100ms for first second
+        let attempts = 0;
+        const playInterval = setInterval(() => {
+          if (attempts++ > 10 || v.playing) {
+            clearInterval(playInterval);
+            return;
+          }
+          v.play().catch(() => {});
+        }, 100);
+        
       }, []);
       return (
         <video
           ref={ref}
           autoPlay
           muted
-          loop
           playsInline
           controls={false}
           crossOrigin="anonymous"

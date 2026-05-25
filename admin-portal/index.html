@@ -116,6 +116,8 @@
     /* Portfolio item styling */
     .portfolio-item{border:1px solid #1e1e1e;border-radius:10px;padding:14px;margin-bottom:12px;background:#0f0f0f;transition:all .2s}
     .portfolio-item:hover{border-color:#2a2a2a;background:#161616}
+    .portfolio-card{border:1px solid #1e1e1e;background:#0f0f0f;padding:20px;border-radius:12px;transition:all .25s}
+    .portfolio-card:hover{border-color:#333;background:#1a1a1a;box-shadow:0 8px 24px rgba(0,0,0,.4)}
     .portfolio-item-header{display:flex;gap:10px;margin-bottom:12px;align-items:center}
     .portfolio-item-header input{flex:1;padding:8px 12px;border:1px solid #2a2a2a;border-radius:6px;background:#1a1a1a;color:#fff;font-size:13px}
     .portfolio-item-header input:focus{outline:none;border-color:#FF7835}
@@ -266,24 +268,24 @@
     <!-- PORTFOLIO PAGE -->
     <div id="page-portfolio" style="display:none">
       <div class="page-title">Portfolio & Gallery</div>
-      <div class="page-sub">Manage portfolio items and CYC wall gallery</div>
+      <div class="page-sub">Map content to website blobs</div>
       
-      <div class="settings-grid" style="margin-bottom:48px">
-        <div class="s-section">
-          <h3>Portfolio Items</h3>
-          <div style="margin-bottom:16px;color:#888;font-size:13px">Manage your work portfolio displayed on the website</div>
-          <div id="portfolioList" style="max-height:600px;overflow-y:auto;border:1px solid #1e1e1e;border-radius:10px;margin-bottom:14px"></div>
-          <button onclick="addPortfolioItem()" style="width:100%;padding:12px;border:1px solid #2a2a2a;background:transparent;color:#818cf8;border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s;margin-bottom:12px">+ Add Portfolio Item</button>
-          <button onclick="savePortfolio()" style="width:100%;padding:12px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Save Portfolio</button>
-        </div>
+      <!-- PORTFOLIO SECTION -->
+      <div class="s-section" style="margin-bottom:48px">
+        <h3>Work Portfolio — 6 Blobs</h3>
+        <div style="margin-bottom:16px;color:#888;font-size:13px">Displayed as a 3-column grid on the Work section. Each blob shows video/poster + title + category label.</div>
+        <div id="portfolioList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20;margin-bottom:24px"></div>
+        <button onclick="savePortfolio()" style="width:100%;padding:12px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Save All Changes</button>
+      </div>
 
-        <div class="s-section">
-          <h3>CYC Wall Gallery</h3>
-          <div style="margin-bottom:16px;color:#888;font-size:13px">Photo & video clips for the CYC wall showcase</div>
-          <div id="cycWallList" style="max-height:600px;overflow-y:auto;border:1px solid #1e1e1e;border-radius:10px;margin-bottom:14px"></div>
-          <button onclick="addCycWallItem()" style="width:100%;padding:12px;border:1px solid #2a2a2a;background:transparent;color:#818cf8;border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s;margin-bottom:12px">+ Add Gallery Item</button>
-          <button onclick="saveCycWall()" style="width:100%;padding:12px;background:linear-gradient(135deg,#FF7835,#FF3D6B);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Save Gallery</button>
+      <!-- CYC WALL SECTION -->
+      <div class="s-section">
+        <h3>CYC Wall Gallery — 3 Blobs</h3>
+        <div style="margin-bottom:16px;color:#888;font-size:13px">
+          Layout: <strong>1 large blob (left)</strong> + <strong>2 stacked blobs (right)</strong>. Each can be photo or video.
         </div>
+        <div id="cycWallList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20;margin-bottom:24px"></div>
+        <button onclick="saveCycWall()" style="width:100%;padding:12px;background:linear-gradient(135deg,#FF7835,#FF3D6B);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Save Gallery Changes</button>
       </div>
     </div>
 
@@ -860,75 +862,87 @@ async function loadCycWall() {
 
 function renderPortfolioList() {
   const html = portfolio.map((p, i) => `
-    <div class="portfolio-item" id="port_${i}">
-      <div class="portfolio-item-header">
-        <input type="text" placeholder="Title" value="${p.title||''}" oninput="portfolio[${i}].title=this.value;portfolio[${i}].title_edited=true"/>
+    <div class="portfolio-item portfolio-card" id="port_${i}">
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:8px">Blob ${i+1} of 6</div>
+        <div style="font-size:13px;font-weight:600;color:#fff">Portfolio Position</div>
       </div>
-      <div class="portfolio-item-body">
+      
+      <div class="portfolio-item-header" style="margin-bottom:14px">
+        <input type="text" placeholder="Title (e.g., Artist — Song Title)" value="${p.title||''}" oninput="portfolio[${i}].title=this.value;portfolio[${i}].title_edited=true" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:13px;font-weight:500"/>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div class="portfolio-field">
-          <label>Category</label>
-          <select onchange="portfolio[${i}].category=this.value">
-            <option value="Music Video" ${p.category==="Music Video"?"selected":""}>Music Video</option>
-            <option value="Commercial" ${p.category==="Commercial"?"selected":""}>Commercial</option>
-            <option value="Other" ${p.category==="Other"?"selected":""}>Other</option>
+          <label style="font-size:11px">Category</label>
+          <select onchange="portfolio[${i}].cat=this.value;portfolio[${i}].category=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px">
+            <option value="Music Video" ${p.cat==="Music Video" || p.category==="Music Video"?"selected":""}>Music Video</option>
+            <option value="Commercial" ${p.cat==="Commercial" || p.category==="Commercial"?"selected":""}>Commercial</option>
           </select>
         </div>
         <div class="portfolio-field">
-          <label>Order</label>
-          <input type="number" value="${p.order||0}" oninput="portfolio[${i}].order=parseInt(this.value)"/>
-        </div>
-        <div class="portfolio-field">
-          <label>Video URL</label>
-          <input type="text" placeholder="/videos/file.mp4" value="${p.src||''}" oninput="portfolio[${i}].src=this.value"/>
-        </div>
-        <div class="portfolio-field">
-          <label>Poster URL</label>
-          <input type="text" placeholder="Thumbnail URL" value="${p.poster||''}" oninput="portfolio[${i}].poster=this.value"/>
+          <label style="font-size:11px">Position #</label>
+          <input type="number" value="${p.order||i+1}" oninput="portfolio[${i}].order=parseInt(this.value);portfolio[${i}].id=parseInt(this.value)" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px"/>
         </div>
       </div>
-      <div class="portfolio-item-thumb">
-        <input type="file" id="thumbfile_${i}" accept="image/*" onchange="uploadPortfolioFile(${i})"/>
-        <button onclick="document.getElementById('thumbfile_${i}').click()">📁 Upload Thumbnail</button>
-        ${p.thumbnail?`<span style="color:#666;font-size:11px">✓ ${p.thumbnail.split('/').pop()}</span>`:''}
+
+      <!-- THUMBNAIL UPLOAD -->
+      <div class="portfolio-item-thumb" style="margin-bottom:14px">
+        <div style="background:rgba(255,120,53,.1);border:2px solid #FF7835;border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all .2s" onclick="document.getElementById('thumbfile_${i}').click()" onmouseover="this.style.background='rgba(255,120,53,.15)'" onmouseout="this.style.background='rgba(255,120,53,.1)'">
+          <div style="font-size:24px;margin-bottom:6px">📷</div>
+          <input type="file" id="thumbfile_${i}" accept="image/*" onchange="uploadPortfolioFile(${i})" style="display:none"/>
+          ${p.poster || p.thumbnail ? `<div style="font-size:11px;color:#888">Poster: ${(p.poster || p.thumbnail).split('/').pop()}</div>` : '<div style="font-size:12px;color:#888">Click to upload poster/thumbnail</div>'}
+        </div>
       </div>
-      <div class="portfolio-item-actions" style="margin-top:12px">
-        <button onclick="portfolio.splice(${i},1);renderPortfolioList();">Delete</button>
+
+      <!-- VIDEO URL -->
+      <div class="portfolio-field" style="margin-bottom:14px">
+        <label style="font-size:11px">Video URL</label>
+        <input type="text" placeholder="/videos/file.mp4" value="${p.src||''}" oninput="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;font-family:monospace"/>
       </div>
+
+      <!-- DELETE -->
+      <button onclick="if(confirm('Remove this item?')) { portfolio.splice(${i},1); renderPortfolioList(); }" style="width:100%;padding:8px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(239,68,68,.15)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">Remove</button>
     </div>
   `).join("");
-  document.getElementById("portfolioList").innerHTML = html || '<div style="color:#666;padding:20px;text-align:center">No items yet</div>';
+  document.getElementById("portfolioList").innerHTML = html || '<div style="color:#666;padding:40px;text-align:center;grid-column:1/-1">No items yet</div>';
 }
 
 function renderCycWallList() {
+  const positions = ["BLOB 1 — Large (Left Side)", "BLOB 2 — Small (Top Right)", "BLOB 3 — Small (Bottom Right)"];
   const html = cycWall.map((item, i) => `
-    <div class="portfolio-item" id="cyc_${i}">
-      <div class="portfolio-item-header">
-        <input type="text" placeholder="Label" value="${item.label||''}" oninput="cycWall[${i}].label=this.value"/>
+    <div class="portfolio-item portfolio-card" id="cyc_${i}">
+      <div style="background:rgba(255,61,107,.1);border:1px solid rgba(255,61,107,.3);border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:8px">${positions[i]}</div>
+        <div style="font-size:13px;font-weight:600;color:#fff">CYC Wall Position</div>
       </div>
-      <div class="portfolio-item-body">
-        <div class="portfolio-field">
-          <label>Type</label>
-          <select onchange="cycWall[${i}].type=this.value">
-            <option value="photo" ${item.type==="photo"?"selected":""}>Photo</option>
-            <option value="video" ${item.type==="video"?"selected":""}>Video Clip</option>
-          </select>
+
+      <div class="portfolio-item-header" style="margin-bottom:14px">
+        <input type="text" placeholder="Label (e.g., Music Video Setup)" value="${item.label||''}" oninput="cycWall[${i}].label=this.value" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:13px;font-weight:500"/>
+      </div>
+
+      <div class="portfolio-field" style="margin-bottom:14px">
+        <label style="font-size:11px">Type</label>
+        <select onchange="cycWall[${i}].type=this.value" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px">
+          <option value="photo" ${item.type==="photo"?"selected":""}>📷 Photo</option>
+          <option value="video" ${item.type==="video"?"selected":""}>🎬 Video Clip</option>
+        </select>
+      </div>
+
+      <!-- MEDIA UPLOAD -->
+      <div class="portfolio-item-thumb" style="margin-bottom:14px">
+        <div style="background:rgba(255,120,53,.1);border:2px solid #FF7835;border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all .2s" onclick="document.getElementById('cycfile_${i}').click()" onmouseover="this.style.background='rgba(255,120,53,.15)'" onmouseout="this.style.background='rgba(255,120,53,.1)'">
+          <div style="font-size:24px;margin-bottom:6px">${item.type==="video"?'🎬':'📷'}</div>
+          <input type="file" id="cycfile_${i}" accept="${item.type==="video"?"video/*":"image/*"}" onchange="uploadCycWallFile(${i})" style="display:none"/>
+          ${item.url ? `<div style="font-size:11px;color:#888">${item.url.split('/').pop()}</div>` : `<div style="font-size:12px;color:#888">Click to upload ${item.type}</div>`}
         </div>
-        <div class="portfolio-field">
-          <label>Order</label>
-          <input type="number" value="${item.order||0}" oninput="cycWall[${i}].order=parseInt(this.value)"/>
-        </div>
       </div>
-      <div class="portfolio-item-thumb">
-        <input type="file" id="cycfile_${i}" accept="image/*,video/*" onchange="uploadCycWallFile(${i})"/>
-        <button onclick="document.getElementById('cycfile_${i}').click()">📁 Upload Media</button>
-        ${item.url?`<span style="color:#666;font-size:11px">✓ ${item.url.split('/').pop()}</span>`:''}
-      </div>
-      <div class="portfolio-item-actions" style="margin-top:12px">
-        <button onclick="cycWall.splice(${i},1);renderCycWallList();">Delete</button>
-      </div>
+
+      <!-- DELETE -->
+      <button onclick="if(confirm('Remove this item?')) { cycWall.splice(${i},1); renderCycWallList(); }" style="width:100%;padding:8px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(239,68,68,.15)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">Remove</button>
     </div>
   `).join("");
-  document.getElementById("cycWallList").innerHTML = html || '<div style="color:#666;padding:20px;text-align:center">No items yet</div>';
+  document.getElementById("cycWallList").innerHTML = html || '<div style="color:#666;padding:40px;text-align:center;grid-column:1/-1">No items yet</div>';
 }
 
 async function uploadPortfolioFile(index) {
@@ -941,9 +955,9 @@ async function uploadPortfolioFile(index) {
     const d = await r.json();
     if (d.ok) {
       portfolio[index].thumbnail = d.url;
-      portfolio[index].src = d.url;
+      portfolio[index].poster = d.url;
       renderPortfolioList();
-      toast("File uploaded ✓","ok");
+      toast("Thumbnail uploaded ✓","ok");
     } else {
       toast("Upload failed: "+d.error,"err");
     }
@@ -980,7 +994,17 @@ function addCycWallItem() {
 
 async function savePortfolio() {
   try {
-    const r = await fetch('/portfolio', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret, items: portfolio }) });
+    // Normalize field names: use 'category' instead of 'cat'
+    const normalized = portfolio.map(p => ({
+      id: p.id,
+      title: p.title || '',
+      category: p.cat || p.category || 'Music Video',
+      thumbnail: p.thumbnail || p.poster || '',
+      src: p.src || '',
+      poster: p.poster || p.thumbnail || '',
+      order: p.order || 0
+    }));
+    const r = await fetch('/portfolio', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret, items: normalized }) });
     const d = await r.json();
     if (d.ok) { toast("Portfolio saved ✓","ok"); } else { toast("Error: "+d.error,"err"); }
   } catch(e) { toast("Error: "+e.message,"err"); }
