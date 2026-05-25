@@ -861,7 +861,11 @@ async function loadCycWall() {
 }
 
 function renderPortfolioList() {
-  const html = portfolio.map((p, i) => `
+  // Ensure we have at least 6 items
+  while (portfolio.length < 6) {
+    portfolio.push({id:`new_${Date.now()}_${portfolio.length}`,title:"",category:"Music Video",thumbnail:"",src:"",poster:"",order:portfolio.length});
+  }
+  const html = portfolio.slice(0,6).map((p, i) => `
     <div class="portfolio-item portfolio-card" id="port_${i}">
       <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-bottom:14px">
         <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:8px">Blob ${i+1} of 6</div>
@@ -905,12 +909,16 @@ function renderPortfolioList() {
       <button onclick="if(confirm('Remove this item?')) { portfolio.splice(${i},1); renderPortfolioList(); }" style="width:100%;padding:8px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(239,68,68,.15)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">Remove</button>
     </div>
   `).join("");
-  document.getElementById("portfolioList").innerHTML = html || '<div style="color:#666;padding:40px;text-align:center;grid-column:1/-1">No items yet</div>';
+  document.getElementById("portfolioList").innerHTML = html;
 }
 
 function renderCycWallList() {
+  // Ensure we have exactly 3 items
+  while (cycWall.length < 3) {
+    cycWall.push({id:`cyc_${Date.now()}_${cycWall.length}`,label:"",type:"photo",url:"",order:cycWall.length});
+  }
   const positions = ["BLOB 1 — Large (Left Side)", "BLOB 2 — Small (Top Right)", "BLOB 3 — Small (Bottom Right)"];
-  const html = cycWall.map((item, i) => `
+  const html = cycWall.slice(0,3).map((item, i) => `
     <div class="portfolio-item portfolio-card" id="cyc_${i}">
       <div style="background:rgba(255,61,107,.1);border:1px solid rgba(255,61,107,.3);border-radius:12px;padding:16px;margin-bottom:14px">
         <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:8px">${positions[i]}</div>
@@ -942,7 +950,7 @@ function renderCycWallList() {
       <button onclick="if(confirm('Remove this item?')) { cycWall.splice(${i},1); renderCycWallList(); }" style="width:100%;padding:8px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(239,68,68,.15)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">Remove</button>
     </div>
   `).join("");
-  document.getElementById("cycWallList").innerHTML = html || '<div style="color:#666;padding:40px;text-align:center;grid-column:1/-1">No items yet</div>';
+  document.getElementById("cycWallList").innerHTML = html;
 }
 
 async function uploadPortfolioFile(index) {
