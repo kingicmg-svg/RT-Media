@@ -3,10 +3,30 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Round Table Media</title>
+  <meta name="description" content="Round Table Media — Professional video production studio in Toronto. Music videos, commercials, corporate videos, and CYC wall studio rentals."/>
+  <meta name="keywords" content="video production, music video, commercial, Toronto, studio rental, CYC wall, cinematography"/>
+  <meta name="author" content="Round Table Media"/>
+  <meta name="robots" content="index, follow"/>
+  <meta property="og:title" content="Round Table Media — Professional Video Production"/>
+  <meta property="og:description" content="Premium video production services and studio rentals in Toronto"/>
+  <meta property="og:type" content="business.business"/>
+  <meta property="og:url" content="https://roundtablemedia.ca"/>
+  <meta property="og:image" content="https://roundtablemedia.ca/RT%20MEDIA_animate%203.PNG"/>
+  <meta name="theme-color" content="#0D0D0D"/>
+  <title>Round Table Media — Video Production Studio Toronto</title>
   <link rel="icon" type="image/x-icon" href="./favicon.ico"/>
   <link rel="apple-touch-icon" href="./apple-touch-icon.png"/>
-  <meta name="theme-color" content="#0D0D0D"/>
+  <link rel="canonical" href="https://roundtablemedia.ca"/>
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX', { 'anonymize_ip': true });
+  </script>
+  
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -230,10 +250,25 @@
         .ri{font-size:16px!important} /* prevent iOS zoom on focus */
         footer{padding:48px 20px!important}
         .hero-stack h1{font-size:clamp(58px,14vw,90px)!important}
+        #faq{padding:60px 20px!important}
+        #faq h2{font-size:clamp(36px,10vw,48px)!important}
       }
 
       @media(max-width:400px){
         .mob-menu a{font-size:36px}
+        .sh{font-size:clamp(32px,9vw,42px)!important}
+      }
+
+      /* ── Accessibility ──────────────────────────────────────────────────────── */
+      @media(prefers-reduced-motion:reduce){
+        *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+      }
+      
+      /* ── Print styles ──────────────────────────────────────────────────────── */
+      @media print{
+        nav,.hbg,.mob-menu{display:none!important}
+        body{background:#fff;color:#000}
+        a{text-decoration:underline}
       }
     `;
 
@@ -1207,28 +1242,125 @@
     }
 
     /* ══ FOOTER ══════════════════════════════════════════════════════════════ */
+    function FAQ() {
+      const [openFAQ, setOpenFAQ] = useState(null);
+      const faqs = [
+        { q: "What formats do you deliver?", a: "We deliver in all standard formats: ProRes, DNxHD, H.264, and more. Raw footage available upon request." },
+        { q: "How long does production take?", a: "Timeline varies by project scope. Typically 2-4 weeks from shoot to final delivery. Rush options available." },
+        { q: "Do you offer color grading?", a: "Yes, all projects include professional color grading and sound design. VFX and animation available separately." },
+        { q: "Can we book the CYC wall for just a few hours?", a: "Yes, we offer flexible hourly booking. Minimum 1-hour sessions with package discounts for full-day rentals." },
+        { q: "Do you handle licensing and permits?", a: "We manage all necessary permits for location shoots. Client is responsible for music licensing." },
+        { q: "What's your revision policy?", a: "We include 2 rounds of revisions in standard packages. Additional revisions billed at $150/hour." },
+      ];
+      return (
+        <section id="faq" style={{background:"#0D0D0D",padding:"80px 56px",maxWidth:1200,margin:"0 auto"}}>
+          <h2 style={{fontFamily:"'Bebas Neue'",fontSize:48,letterSpacing:".06em",marginBottom:60,textAlign:"center",color:"#fff"}}>FREQUENTLY ASKED</h2>
+          <div style={{display:"grid",gap:12}}>
+            {faqs.map((item,i)=>(
+              <div key={i} style={{background:"#1a1a1a",border:"1px solid #333",borderRadius:12,overflow:"hidden",transition:"all .2s"}}>
+                <button onClick={()=>setOpenFAQ(openFAQ===i?null:i)} style={{
+                  width:"100%",padding:"20px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:"none",border:"none",cursor:"pointer",textAlign:"left"
+                }}>
+                  <span style={{fontFamily:"'DM Sans'",fontSize:15,fontWeight:600,color:"#fff"}}>{item.q}</span>
+                  <span style={{fontSize:20,color:"#FF3D6B",transition:"transform .2s",transform:openFAQ===i?"rotate(180deg)":"rotate(0deg)"}}>↓</span>
+                </button>
+                {openFAQ===i && (
+                  <div style={{padding:"0 24px 20px",borderTop:"1px solid #333",fontFamily:"'DM Sans'",fontSize:14,color:"#aaa",lineHeight:1.7}}>
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
     function Footer() {
       return (
-        <footer style={{background:"#0D0D0D",padding:"60px 56px"}}>
-          <div style={{maxWidth:1200,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:32}}>
-            <div>
-              <div style={{marginBottom:10}}>
-                <img src={LOGO_SRC} alt="Round Table Media" style={{height:48,width:"auto",objectFit:"contain"}}/>
+        <footer style={{background:"#0D0D0D",borderTop:"1px solid #333",padding:"80px 56px 40px"}}>
+          <div style={{maxWidth:1200,margin:"0 auto"}}>
+            {/* Footer content grid */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:60,marginBottom:60}}>
+              {/* Brand */}
+              <div>
+                <div style={{marginBottom:20}}>
+                  <img src={LOGO_SRC} alt="Round Table Media" style={{height:48,width:"auto",objectFit:"contain"}}/>
+                </div>
+                <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",lineHeight:1.8,marginBottom:16}}>
+                  Professional video production studio in Toronto specializing in music videos, commercials, and corporate content.
+                </p>
+                <div style={{display:"flex",gap:12}}>
+                  {[
+                    {icon:"📧",link:"mailto:bookings@roundtablemedia.ca",label:"Email"},
+                    {icon:"📱",link:"tel:+14165551234",label:"Call"},
+                  ].map(c=>(
+                    <a key={c.label} href={c.link} title={c.label} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.05)",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.background="#FF3D6B"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.05)"}>
+                      {c.icon}
+                    </a>
+                  ))}
+                </div>
               </div>
-              <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.3)",fontWeight:300}}>Round Table Media · Toronto, ON</p>
+              
+              {/* Quick Links */}
+              <div>
+                <h4 style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:".08em",color:"#fff",marginBottom:20}}>NAVIGATE</h4>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {["Work","About","Services","Studio","Book"].map(l=>(
+                    <a key={l} href={`#${l.toLowerCase()}`}
+                      style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",transition:"color .2s",textDecoration:"none"}}
+                      onMouseEnter={e=>e.currentTarget.style.color="#fff"}
+                      onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.4)"}
+                    >{l}</a>
+                  ))}
+                  <a href="#faq" style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",transition:"color .2s",textDecoration:"none"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.4)"}>FAQ</a>
+                </div>
+              </div>
+
+              {/* Services */}
+              <div>
+                <h4 style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:".08em",color:"#fff",marginBottom:20}}>SERVICES</h4>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {["Music Videos","Commercials","Corporate Videos","CYC Wall Rental","Color Grading"].map(s=>(
+                    <p key={s} style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",margin:0}}>{s}</p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div>
+                <h4 style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:".08em",color:"#fff",marginBottom:20}}>CONTACT</h4>
+                <div style={{display:"flex",flexDirection:"column",gap:12,fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.6)"}}>
+                  <div>
+                    <p style={{margin:0,color:"rgba(255,255,255,.4)",fontSize:12,letterSpacing:".05em",marginBottom:4}}>📍 LOCATION</p>
+                    <p style={{margin:0}}>Toronto, ON<br/>Canada</p>
+                  </div>
+                  <div>
+                    <p style={{margin:0,color:"rgba(255,255,255,.4)",fontSize:12,letterSpacing:".05em",marginBottom:4}}>📧 EMAIL</p>
+                    <a href="mailto:bookings@roundtablemedia.ca" style={{color:"rgba(255,255,255,.6)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#FF3D6B"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.6)"}>bookings@roundtablemedia.ca</a>
+                  </div>
+                  <div>
+                    <p style={{margin:0,color:"rgba(255,255,255,.4)",fontSize:12,letterSpacing:".05em",marginBottom:4}}>🕐 HOURS</p>
+                    <p style={{margin:0}}>Mon - Fri: 9AM - 6PM<br/>Sat - Sun: By appointment</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style={{display:"flex",gap:34,flexWrap:"wrap"}}>
-              {["Work","About","Services","Studio","Book"].map(l=>(
-                <a key={l} href={`#${l.toLowerCase()}`}
-                  style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",transition:"color .2s"}}
-                  onMouseEnter={e=>e.currentTarget.style.color="#fff"}
-                  onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.4)"}
-                >{l}</a>
-              ))}
+
+            {/* Divider */}
+            <div style={{borderTop:"1px solid #333",paddingTop:40}}>
+              {/* Bottom footer */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:20}}>
+                <p style={{fontFamily:"'DM Sans'",fontSize:12,color:"rgba(255,255,255,.2)",margin:0}}>
+                  © {new Date().getFullYear()} Round Table Media. All rights reserved.
+                </p>
+                <div style={{display:"flex",gap:28,fontFamily:"'DM Sans'",fontSize:12}}>
+                  <a href="#" style={{color:"rgba(255,255,255,.3)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.3)"}>Privacy Policy</a>
+                  <a href="#" style={{color:"rgba(255,255,255,.3)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.3)"}>Terms of Service</a>
+                </div>
+              </div>
             </div>
-            <p style={{fontFamily:"'DM Sans'",fontSize:12,color:"rgba(255,255,255,.2)"}}>
-              © {new Date().getFullYear()} Round Table Media
-            </p>
           </div>
         </footer>
       );
@@ -1341,6 +1473,7 @@
             proj={proj} setProj={setProj}
             done={done} setDone={setDone}
           />
+          <FAQ/>
           <Footer/>
         </>
       );
