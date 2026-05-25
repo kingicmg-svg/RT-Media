@@ -376,6 +376,74 @@ app.post("/logout", async (req, res) => {
   }
 });
 
+// ── POST /portfolio-upload  (Upload media for portfolio/cyc wall) ─────────────
+app.post('/portfolio-upload/:secret', upload.single('file'), (req, res) => {
+  if (req.params.secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded' });
+  res.json({ 
+    ok: true, 
+    filename: req.file.filename,
+    url: `/videos/${req.file.filename}`,
+    size: req.file.size
+  });
+});
+
+// ── GET /portfolio  (Fetch portfolio items) ────────────────────────────────────
+app.get('/portfolio', async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT value FROM settings WHERE key='portfolio'");
+    const portfolio = rows.length ? JSON.parse(rows[0].value) : [];
+    res.json(portfolio);
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── PUT /portfolio  (Update portfolio items) ────────────────────────────────────
+app.put('/portfolio', async (req, res) => {
+  const { secret, items } = req.body;
+  if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  try {
+    await pool.query(
+      "INSERT INTO settings (key,value) VALUES($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2",
+      ['portfolio', JSON.stringify(items)]
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /cyc-wall  (Fetch CYC wall gallery items) ────────────────────────────
+app.get('/cyc-wall', async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT value FROM settings WHERE key='cyc_wall'");
+    const cycWall = rows.length ? JSON.parse(rows[0].value) : [];
+    res.json(cycWall);
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── PUT /cyc-wall  (Update CYC wall gallery) ───────────────────────────────────
+app.put('/cyc-wall', async (req, res) => {
+  const { secret, items } = req.body;
+  if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  try {
+    await pool.query(
+      "INSERT INTO settings (key,value) VALUES($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2",
+      ['cyc_wall', JSON.stringify(items)]
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── GET /security-info  (Get security settings) ────────────────────────────────
 app.get("/security-info", async (req, res) => {
   try {

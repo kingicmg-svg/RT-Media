@@ -96,7 +96,9 @@ async function init() {
       ('services',      '[{"id":"cyc","label":"Rent the CYC Wall","enabled":true},{"id":"production","label":"Book a Production","enabled":true}]'),
       ('studio_name',   'Round Table Media'),
       ('studio_city',   'Toronto, Ontario'),
-      ('studio_email',  'rtablemedia@gmail.com')
+      ('studio_email',  'rtablemedia@gmail.com'),
+      ('portfolio',     '[{"id":"1","title":"ESCO — Live From Iron City","category":"Music Video","thumbnail":"","src":"","poster":"","order":0},{"id":"2","title":"Northbound — Brand Film","category":"Commercial","thumbnail":"","src":"","poster":"","order":1},{"id":"3","title":"Caano — Story Sessions","category":"Music Video","thumbnail":"","src":"","poster":"","order":2},{"id":"4","title":"Summit — Launch Campaign","category":"Commercial","thumbnail":"","src":"","poster":"","order":3},{"id":"5","title":"Iron City — Movement","category":"Music Video","thumbnail":"","src":"","poster":"","order":4},{"id":"6","title":"Studio 905 — Corporate","category":"Commercial","thumbnail":"","src":"","poster":"","order":5}]'),
+      ('cyc_wall',      '[]')
     ON CONFLICT (key) DO NOTHING;
     INSERT INTO admin_users (username, password, email, twofa_enabled) 
     VALUES ('admin', 'rt_media26', 'rtablemedia@gmail.com', true)

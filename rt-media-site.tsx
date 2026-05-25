@@ -133,7 +133,7 @@ const CSS = `
   .play:hover{transform:scale(1.14);background:rgba(255,255,255,.34)}
   .tri{width:0;height:0;border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:16px solid rgba(255,255,255,.9);margin-left:4px}
 
-  .cat-tag{padding:4px 14px;border-radius:100px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff}
+  .cat-tag{padding:6px 16px;border-radius:100px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;white-space:nowrap;display:inline-block;max-width:calc(100% - 36px)}
   .hero-stack>*{opacity:0;animation:fadeUp .72s ease forwards}
   .hero-stack>*:nth-child(1){animation-delay:.22s}
   .hero-stack>*:nth-child(2){animation-delay:.44s}
@@ -174,7 +174,7 @@ function BlobThumb({ grad, br, height = 300, src, poster, label, catTag, childre
         {label && <span style={{fontFamily:"'DM Sans'",fontSize:12,color:"rgba(255,255,255,.65)",fontWeight:300}}>{label}</span>}
       </div>
       {catTag && (
-        <div style={{position:"absolute",top:18,left:18}}>
+        <div style={{position:"absolute",top:18,left:18,right:18,display:"flex",justifyContent:"flex-start"}}>
           <span className="cat-tag">{catTag}</span>
         </div>
       )}
@@ -246,8 +246,9 @@ function ServicesSection() {
 }
 
 /* ══ STUDIO SECTION ══════════════════════════════════════════════════════════ */
-function StudioSection({ setTab }) {
+function StudioSection({ setTab, cycWallItems }) {
   const [ref, inView] = useInView(0.08);
+  const items = cycWallItems && cycWallItems.length ? cycWallItems : VIDEOS.studio;
   return (
     <section id="studio" className="sec" ref={ref} style={{background:"#0D0D0D"}}>
       <div style={{maxWidth:1200,margin:"0 auto"}}>
@@ -264,13 +265,13 @@ function StudioSection({ setTab }) {
           {/* Feature left */}
           <div className={`rs${inView?" v":""}`} style={{flex:2,minWidth:200,transitionDelay:"0s"}}>
             <BlobThumb grad={GRADS[0]} br={BLOBS[0]} height={440}
-              src={VIDEOS.studio[0]?.src} poster={VIDEOS.studio[0]?.poster}
-              label={VIDEOS.studio[0]?.label}
+              src={items[0]?.src} poster={items[0]?.poster}
+              label={items[0]?.label}
             />
           </div>
           {/* Two stacked right */}
           <div className="studio-side" style={{flex:1,minWidth:180,display:"flex",flexDirection:"column",gap:20}}>
-            {VIDEOS.studio.slice(1).map((v,i)=>(
+            {items.slice(1).map((v,i)=>(
               <div key={i} className={`rs${inView?" v":""}`} style={{flex:1,transitionDelay:`${(i+1)*.12}s`}}>
                 <BlobThumb grad={GRADS[i+2]} br={BLOBS[i+2]} height={210}
                   src={v.src} poster={v.poster} label={v.label}
@@ -451,6 +452,10 @@ export default function App() {
   const [cyc,      setCyc]        = useState({ name:"", email:"", phone:"", date:"" });
   const [proj,     setProj]       = useState({ name:"", email:"", phone:"", service:"", message:"" });
   const [done,     setDone]       = useState(false);
+  const [heroLoops, setHeroLoops] = useState(0);
+  const heroVideoRef = useRef(null);
+  const [portfolioItems, setPortfolioItems] = useState(VIDEOS.work);
+  const [cycWallItems, setCycWallItems] = useState(VIDEOS.studio);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 60);
@@ -458,8 +463,43 @@ export default function App() {
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
+  // Load portfolio from API
+  useEffect(() => {
+    const loadPortfolio = async () => {
+      try {
+        const r = await fetch('/portfolio');
+        const data = await r.json();
+        if (data && data.length) {
+          setPortfolioItems(data.map(p => ({ ...p, cat: p.category, title: p.title || "" })));
+        }
+      } catch(e) { console.error("Failed to load portfolio:", e); }
+    };
+    const loadCycWall = async () => {
+      try {
+        const r = await fetch('/cyc-wall');
+        const data = await r.json();
+        if (data && data.length) {
+          setCycWallItems(data.map(c => ({ ...c, label: c.label || "", src: c.url || "", poster: c.url || "" })));
+        }
+      } catch(e) { console.error("Failed to load CYC wall:", e); }
+    };
+    loadPortfolio();
+    loadCycWall();
+  }, []);
+
+  // Handle hero video: loop 5 times then stop
+  const handleHeroVideoEnded = () => {
+    if (heroLoops < 4) {
+      setHeroLoops(prev => prev + 1);
+      if (heroVideoRef.current) {
+        heroVideoRef.current.currentTime = 0;
+        heroVideoRef.current.play();
+      }
+    }
+  };
+
   const toggleAddon = a => setAddons(p => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
-  const filtered = filter === "All" ? VIDEOS.work : VIDEOS.work.filter(w => w.cat === filter);
+  const filtered = filter === "All" ? portfolioItems : portfolioItems.filter(w => w.cat === filter);
 
   return (
     <>
@@ -481,7 +521,7 @@ export default function App() {
       {/* ── HERO ────────────────────────────────────────────────── */}
       <section id="hero" style={{minHeight:"100vh",padding:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",background:"#0D0D0D"}}>
         {VIDEOS.showreel
-          ? <video autoPlay muted loop playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:.45}} src={VIDEOS.showreel}/>
+          ? <video ref={heroVideoRef} autoPlay muted playsInline onEnded={handleHeroVideoEnded} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:.45}} src={VIDEOS.showreel}/>
           : <div style={{position:"absolute",inset:0,background:"linear-gradient(145deg,#0D0D0D 0%,#1c0a2e 55%,#0d0808 100%)"}}/>
         }
 
@@ -525,7 +565,7 @@ export default function App() {
       {/* ── SECTIONS ────────────────────────────────────────────── */}
       <WorkSection filter={filter} setFilter={setFilter} items={filtered}/>
       <ServicesSection/>
-      <StudioSection setTab={setTab}/>
+      <StudioSection setTab={setTab} cycWallItems={cycWallItems}/>
       <BookSection
         tab={tab} setTab={setTab}
         dur={dur} setDur={setDur}
