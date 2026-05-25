@@ -681,6 +681,16 @@
           const data = await res.json();
           if (!data.ok) throw new Error(data.error || "Server error");
 
+          // Handle different payment methods
+          if (payMethod === "paypal") {
+            // Redirect to PayPal with amount
+            window.location.href = `${PAYMENT.paypal}/${Math.round(dueNow * 100) / 100}`;
+            return;
+          } else if (payMethod === "apple" || payMethod === "google") {
+            // For Apple Pay / Google Pay - use Stripe or show manual payment instructions
+            alert(`Please complete payment of $${dueNow.toFixed(2)} using the payment method linked to your device. Confirmation #${data.conf} has been sent to ${cyc.email}`);
+          }
+
           // Build Google Calendar link for the client
           const clientCal = buildCalLink({
             title: "Round Table Media — CYC Wall Booking",
@@ -1062,19 +1072,29 @@
           {/* E-transfer instructions */}
           {payMethod==="etransfer" && (
             <div style={{background:"#F0FFF4",border:"1px solid #86efac",borderRadius:12,padding:"16px 20px",marginBottom:20}}>
-              <p style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700,color:"#166534",marginBottom:8}}>E-Transfer Instructions</p>
+              <p style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700,color:"#166534",marginBottom:8}}>✓ E-Transfer Instructions</p>
               <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#166534",lineHeight:1.7}}>
                 Send <strong>${dueNow.toFixed(2)}</strong> to <strong>{PAYMENT.etransfer}</strong><br/>
-                Message/note: <strong>{cyc.name||"Your Name"} — {fmtDate(selDate)}</strong><br/>
-                Auto-deposit enabled — no security question needed.
+                <strong>Reference:</strong> {cyc.name||"Your Name"} — {fmtDate(selDate)}<br/>
+                Auto-deposit enabled, no security question needed.
               </p>
             </div>
           )}
-          {(payMethod==="apple"||payMethod==="google"||payMethod==="paypal") && (
+          {payMethod==="paypal" && (
+            <div style={{background:"#FFF9E6",border:"1px solid #FFC408",borderRadius:12,padding:"16px 20px",marginBottom:20}}>
+              <p style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700,color:"#B8860B",marginBottom:8}}>💳 PayPal Payment</p>
+              <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#B8860B",lineHeight:1.7}}>
+                Click "Pay via PayPal" below. You'll be redirected to securely complete your <strong>${dueNow.toFixed(2)} deposit</strong> payment.<br/>
+                Time slot held for <strong>15 minutes</strong> while you complete payment.
+              </p>
+            </div>
+          )}
+          {(payMethod==="apple"||payMethod==="google") && (
             <div style={{background:"#EFF6FF",border:"1px solid #93c5fd",borderRadius:12,padding:"16px 20px",marginBottom:20}}>
+              <p style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700,color:"#1e40af",marginBottom:8}}>💳 Digital Payment</p>
               <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#1e40af",lineHeight:1.7}}>
-                You'll be taken to complete your <strong>${dueNow.toFixed(2)} deposit</strong> securely.
-                Your time slot is held for <strong>15 minutes</strong> while you complete payment.
+                Click the button below to securely complete your <strong>${dueNow.toFixed(2)} deposit</strong> payment.<br/>
+                Time slot held for <strong>15 minutes</strong> while you complete payment.
               </p>
             </div>
           )}
@@ -1085,7 +1105,7 @@
               style={{flex:2,padding:16,fontSize:14,opacity:(!payMethod||!cyc.name||!cyc.email)?0.45:1,transition:"opacity .2s"}}
               disabled={!payMethod||!cyc.name||!cyc.email}
               onClick={onSubmit}>
-              {payMethod==="etransfer" ? `I've Sent $${dueNow.toFixed(2)} ✓`
+              {payMethod==="etransfer" ? `Confirm Booking — ${dueNow.toFixed(2)} via E-Transfer`
                 : payMethod==="paypal" ? `Pay $${dueNow.toFixed(2)} via PayPal →`
                 : payMethod==="apple"  ? `Pay $${dueNow.toFixed(2)} with Apple Pay →`
                 : payMethod==="google" ? `Pay $${dueNow.toFixed(2)} with Google Pay →`
