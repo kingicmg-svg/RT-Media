@@ -136,6 +136,15 @@
       return value.trim();
     }
 
+    function titleFromMedia(url) {
+      const cleanUrl = cleanText(url);
+      if (!cleanUrl) return "";
+      const withoutQuery = cleanUrl.split("?")[0].split("#")[0];
+      const rawName = decodeURIComponent(withoutQuery.split("/").pop() || "");
+      const base = rawName.replace(/\.[a-z0-9]+$/i, "").trim();
+      return base.replace(/[_]+/g, " ");
+    }
+
     /* ── Global CSS ─────────────────────────────────────────────────────────── */
     const CSS = `
       @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -614,7 +623,7 @@
                     height={310} src={item.src} poster={item.poster}
                   />
                   <div style={{marginTop:20,paddingLeft:2}}>
-                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanText(item.title) || "Untitled Project"}</h3>
+                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanText(item.title) || titleFromMedia(item.src) || titleFromMedia(item.poster) || `Project ${i + 1}`}</h3>
                   </div>
                 </div>
               ))}
@@ -1412,7 +1421,12 @@
           id: p.id || i + 1,
           src: mediaUrl(p.src || ""),
           poster: mediaUrl(p.poster || p.thumbnail || ""),
-          title: cleanText(p.title) || VIDEOS.work[i]?.title || `Project ${i + 1}`,
+          title:
+            cleanText(p.title) ||
+            titleFromMedia(p.src) ||
+            titleFromMedia(p.poster || p.thumbnail) ||
+            VIDEOS.work[i]?.title ||
+            `Project ${i + 1}`,
           cat: cleanText(p.cat) || cleanText(p.category) || "Music Video",
           order: Number.isFinite(Number(p.order)) ? Number(p.order) : i,
         });
@@ -1436,7 +1450,14 @@
                     id: fromAdmin.id || fallback.id,
                     src: fromAdmin.src || fallback.src,
                     poster: fromAdmin.poster || fallback.poster,
-                    title: cleanText(fromAdmin.title) || fallback.title || `Project ${i + 1}`,
+                    title:
+                      cleanText(fromAdmin.title) ||
+                      titleFromMedia(fromAdmin.src) ||
+                      titleFromMedia(fromAdmin.poster) ||
+                      cleanText(fallback.title) ||
+                      titleFromMedia(fallback.src) ||
+                      titleFromMedia(fallback.poster) ||
+                      `Project ${i + 1}`,
                     cat: cleanText(fromAdmin.cat) || fallback.cat || "Music Video",
                   };
                 });
