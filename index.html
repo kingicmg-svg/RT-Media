@@ -160,6 +160,85 @@
       return base.replace(/[_]+/g, " ");
     }
 
+    const AUTO_THUMB_TIME_SECONDS = 50;
+    const videoThumbCache = new Map();
+
+    function createVideoThumbnail(src, preferredTime = AUTO_THUMB_TIME_SECONDS) {
+      if (!src) return Promise.resolve("");
+      if (videoThumbCache.has(src)) return Promise.resolve(videoThumbCache.get(src));
+
+      return new Promise((resolve) => {
+        const video = document.createElement("video");
+        let finished = false;
+
+        const done = (result) => {
+          if (finished) return;
+          finished = true;
+          cleanup();
+          if (result) videoThumbCache.set(src, result);
+          resolve(result || "");
+        };
+
+        const cleanup = () => {
+          video.removeEventListener("loadedmetadata", onLoadedMetadata);
+          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("error", onError);
+          try {
+            video.pause();
+            video.removeAttribute("src");
+            video.load();
+          } catch {}
+        };
+
+        const onError = () => done("");
+
+        const onLoadedMetadata = () => {
+          const duration = Number.isFinite(video.duration) ? video.duration : 0;
+          const seekTo = duration > 0
+            ? Math.min(preferredTime, Math.max(0, duration - 0.4))
+            : preferredTime;
+          try {
+            video.currentTime = seekTo;
+          } catch {
+            done("");
+          }
+        };
+
+        const onSeeked = () => {
+          try {
+            const width = video.videoWidth || 1280;
+            const height = video.videoHeight || 720;
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              done("");
+              return;
+            }
+            ctx.drawImage(video, 0, 0, width, height);
+            done(canvas.toDataURL("image/jpeg", 0.86));
+          } catch {
+            done("");
+          }
+        };
+
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+        video.crossOrigin = "anonymous";
+
+        video.addEventListener("loadedmetadata", onLoadedMetadata);
+        video.addEventListener("seeked", onSeeked);
+        video.addEventListener("error", onError);
+
+        video.src = src;
+        video.load();
+
+        setTimeout(() => done(""), 7000);
+      });
+    }
+
     /* ── Global CSS ─────────────────────────────────────────────────────────── */
     const CSS = `
       @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -398,7 +477,29 @@
       const vidRef = React.useRef(null);
       const [isPlaying, setIsPlaying] = React.useState(false);
       const [videoError, setVideoError] = React.useState(false);
+      const [autoPoster, setAutoPoster] = React.useState("");
       const hasVideo = Boolean(src) && !videoError;
+      const displayPoster = poster || autoPoster;
+
+      React.useEffect(() => {
+        let active = true;
+        setAutoPoster("");
+
+        if (poster || !src) {
+          return () => {
+            active = false;
+          };
+        }
+
+        createVideoThumbnail(src).then((thumb) => {
+          if (!active) return;
+          if (thumb) setAutoPoster(thumb);
+        });
+
+        return () => {
+          active = false;
+        };
+      }, [src, poster]);
 
       const togglePlayback = () => {
         if (!hasVideo) return;
@@ -421,14 +522,14 @@
 
       return (
         <div className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:hasVideo?"pointer":"default" }} onClick={togglePlayback}>
-          {poster && (
-            <img src={poster} alt={label || "Portfolio thumbnail"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+          {displayPoster && (
+            <img src={displayPoster} alt={label || "Portfolio thumbnail"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
           )}
           {hasVideo && isPlaying && (
             <video
               ref={vidRef}
               src={src}
-              poster={poster}
+              poster={displayPoster}
               autoPlay
               muted
               loop
@@ -440,7 +541,7 @@
               style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}
             />
           )}
-          {!poster && !hasVideo && (
+          {!displayPoster && !hasVideo && (
             <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 20px",textAlign:"center",fontFamily:"'DM Sans'",fontSize:12,color:"rgba(255,255,255,.68)",letterSpacing:".06em",textTransform:"uppercase"}}>
               Thumbnail Coming Soon
             </div>
