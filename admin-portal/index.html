@@ -452,6 +452,95 @@ let secret   = "";
 let bookings = [];
 let settings = {};
 let bFilter  = "all";
+const AUTO_THUMB_TIME_SECONDS = 70;
+const thumbCache = new Map();
+
+function toAbsoluteMediaUrl(url) {
+  if (!url) return "";
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (url.startsWith("/")) return `${API}${url}`;
+  return url;
+}
+
+function makeVideoThumbAt(url, preferredTime = AUTO_THUMB_TIME_SECONDS) {
+  if (!url) return Promise.resolve("");
+  if (thumbCache.has(url)) return Promise.resolve(thumbCache.get(url));
+
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    let done = false;
+
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      cleanup();
+      if (result) thumbCache.set(url, result);
+      resolve(result || "");
+    };
+
+    const cleanup = () => {
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("error", onError);
+      try {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      } catch {}
+    };
+
+    const onError = () => finish("");
+
+    const onLoadedMetadata = () => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      const seekTo = duration > 0 ? Math.min(preferredTime, Math.max(0, duration - 0.4)) : preferredTime;
+      try {
+        video.currentTime = seekTo;
+      } catch {
+        finish("");
+      }
+    };
+
+    const onSeeked = () => {
+      try {
+        const w = video.videoWidth || 1280;
+        const h = video.videoHeight || 720;
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return finish("");
+        ctx.drawImage(video, 0, 0, w, h);
+        finish(canvas.toDataURL("image/jpeg", 0.86));
+      } catch {
+        finish("");
+      }
+    };
+
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("error", onError);
+
+    video.src = url;
+    video.load();
+
+    setTimeout(() => finish(""), 7000);
+  });
+}
+
+async function assignAutoThumb(item) {
+  if (!item || !item.src) return;
+  if (item.poster || item.thumbnail) return;
+  const thumb = await makeVideoThumbAt(toAbsoluteMediaUrl(item.src));
+  if (!thumb) return;
+  item.poster = thumb;
+  item.thumbnail = thumb;
+}
 
 /* ── Auth ──────────────────────────────────────────────────────── */
 async function doLogin() {
@@ -919,7 +1008,7 @@ function renderPortfolioList() {
       <!-- VIDEO URL / SELECT -->
       <div class="portfolio-field" style="margin-bottom:14px">
         <label style="font-size:10px;text-transform:uppercase;font-weight:600;color:#666;margin-bottom:6px;letter-spacing:.08em;display:block">Or Select Existing</label>
-        <select onchange="portfolio[${i}].src=this.value" style="width:100%;padding:8px;background:#0d0d0d;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;outline:none">
+        <select onchange="setPortfolioVideo(${i},this.value)" style="width:100%;padding:8px;background:#0d0d0d;border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;outline:none">
           <option value="">-- Select video --</option>
           ${availableVideos.map(v => `<option value="${v.url}" ${p.src===v.url?'selected':''}>${v.name}</option>`).join('')}
         </select>
@@ -1003,12 +1092,25 @@ async function uploadPortfolioVideo(index) {
     const d = await r.json();
     if (d.ok) {
       portfolio[index].src = d.url;
+      portfolio[index].poster = "";
+      portfolio[index].thumbnail = "";
+      await assignAutoThumb(portfolio[index]);
       renderPortfolioList();
       toast("Video uploaded ✓","ok");
     } else {
       toast("Upload failed: "+d.error,"err");
     }
   } catch(e) { toast("Error: "+e.message,"err"); }
+}
+
+async function setPortfolioVideo(index, value) {
+  portfolio[index].src = value || "";
+  portfolio[index].poster = "";
+  portfolio[index].thumbnail = "";
+  if (portfolio[index].src) {
+    await assignAutoThumb(portfolio[index]);
+  }
+  renderPortfolioList();
 }
 
 async function uploadCycWallFile(index) {
@@ -1041,6 +1143,7 @@ function addCycWallItem() {
 
 async function savePortfolio() {
   try {
+    await Promise.all(portfolio.map(p => assignAutoThumb(p)));
     // Normalize field names: use 'category' instead of 'cat'
     const normalized = portfolio.map(p => ({
       id: p.id,
