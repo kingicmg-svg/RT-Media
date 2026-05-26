@@ -136,6 +136,21 @@
       return value.trim();
     }
 
+    const PLACEHOLDER_PORTFOLIO_TITLES = new Set([
+      "esco — live from iron city",
+      "northbound — brand film",
+      "caano — story sessions",
+      "summit — launch campaign",
+      "iron city — movement",
+      "studio 905 — corporate",
+    ]);
+
+    function cleanPortfolioTitle(value) {
+      const text = cleanText(value);
+      if (!text) return "";
+      return PLACEHOLDER_PORTFOLIO_TITLES.has(text.toLowerCase()) ? "" : text;
+    }
+
     function titleFromMedia(url) {
       const cleanUrl = cleanText(url);
       if (!cleanUrl) return "";
@@ -623,7 +638,7 @@
                     height={310} src={item.src} poster={item.poster}
                   />
                   <div style={{marginTop:20,paddingLeft:2}}>
-                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanText(item.title) || titleFromMedia(item.src) || titleFromMedia(item.poster) || ""}</h3>
+                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanPortfolioTitle(item.title) || titleFromMedia(item.src) || titleFromMedia(item.poster) || ""}</h3>
                   </div>
                 </div>
               ))}
@@ -1422,10 +1437,10 @@
           src: mediaUrl(p.src || ""),
           poster: mediaUrl(p.poster || p.thumbnail || ""),
           title:
-            cleanText(p.title) ||
+            cleanPortfolioTitle(p.title) ||
             titleFromMedia(p.src) ||
             titleFromMedia(p.poster || p.thumbnail) ||
-            VIDEOS.work[i]?.title ||
+            cleanPortfolioTitle(VIDEOS.work[i]?.title) ||
             "",
           cat: cleanText(p.cat) || cleanText(p.category) || "Music Video",
           order: Number.isFinite(Number(p.order)) ? Number(p.order) : i,
@@ -1451,10 +1466,10 @@
                     src: fromAdmin.src || fallback.src,
                     poster: fromAdmin.poster || fallback.poster,
                     title:
-                      cleanText(fromAdmin.title) ||
+                      cleanPortfolioTitle(fromAdmin.title) ||
                       titleFromMedia(fromAdmin.src) ||
                       titleFromMedia(fromAdmin.poster) ||
-                      cleanText(fallback.title) ||
+                      cleanPortfolioTitle(fallback.title) ||
                       titleFromMedia(fallback.src) ||
                       titleFromMedia(fallback.poster) ||
                       "",
