@@ -282,30 +282,57 @@
         loopCount.current = 0;
         v.muted = true;
         v.setAttribute("muted", "");
+        v.playsInline = true;
         v.controls = false;
 
-        const playFromStart = () => {
-          v.currentTime = 0;
-          v.play().catch(() => {});
+        let playInterval = null;
+
+        const tryPlay = () => {
+          if (loopCount.current >= 5) {
+            return;
+          }
+          if (v.paused || v.ended) {
+            v.play().catch(() => {});
+          }
         };
 
         const handleEnded = () => {
           loopCount.current += 1;
           if (loopCount.current < 5) {
-            playFromStart();
+            v.currentTime = 0;
+            tryPlay();
+          } else {
+            v.pause();
+            if (playInterval) clearInterval(playInterval);
           }
         };
 
+        const handleReady = () => {
+          v.currentTime = 0;
+          tryPlay();
+        };
+
         v.addEventListener("ended", handleEnded);
-        v.addEventListener("loadedmetadata", playFromStart);
+        v.addEventListener("loadedmetadata", handleReady);
+        v.addEventListener("canplay", handleReady);
 
         if (v.readyState >= 1) {
-          playFromStart();
+          handleReady();
         }
+
+        playInterval = setInterval(() => {
+          if (loopCount.current >= 5) {
+            clearInterval(playInterval);
+            return;
+          }
+          tryPlay();
+        }, 200);
 
         return () => {
           v.removeEventListener("ended", handleEnded);
-          v.removeEventListener("loadedmetadata", playFromStart);
+          v.removeEventListener("loadedmetadata", handleReady);
+          v.removeEventListener("canplay", handleReady);
+          if (playInterval) clearInterval(playInterval);
         };
       }, []);
 
@@ -318,6 +345,7 @@
           controls={false}
           ref={ref}
           disablePictureInPicture
+          controlsList="nodownload noplaybackrate noremoteplayback"
           crossOrigin="anonymous"
           src={src}
           style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:.45}}

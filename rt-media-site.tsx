@@ -452,7 +452,7 @@ export default function App() {
   const [cyc,      setCyc]        = useState({ name:"", email:"", phone:"", date:"" });
   const [proj,     setProj]       = useState({ name:"", email:"", phone:"", service:"", message:"" });
   const [done,     setDone]       = useState(false);
-  const [heroLoops, setHeroLoops] = useState(0);
+  const heroLoops = useRef(0);
   const heroVideoRef = useRef(null);
   const [portfolioItems, setPortfolioItems] = useState(VIDEOS.work);
   const [cycWallItems, setCycWallItems] = useState(VIDEOS.studio);
@@ -461,6 +461,65 @@ export default function App() {
     const fn = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
+  }, []);
+
+  useEffect(() => {
+    const v = heroVideoRef.current;
+    if (!v) return;
+
+    heroLoops.current = 0;
+    v.muted = true;
+    v.setAttribute("muted", "");
+    v.playsInline = true;
+    v.controls = false;
+
+    let playInterval = null;
+
+    const tryPlay = () => {
+      if (heroLoops.current >= 5) return;
+      if (v.paused || v.ended) {
+        v.play().catch(() => {});
+      }
+    };
+
+    const handleReady = () => {
+      v.currentTime = 0;
+      tryPlay();
+    };
+
+    const handleEnded = () => {
+      if (heroLoops.current < 4) {
+        heroLoops.current += 1;
+        v.currentTime = 0;
+        tryPlay();
+      } else {
+        v.pause();
+        if (playInterval) clearInterval(playInterval);
+      }
+    };
+
+    v.addEventListener("loadedmetadata", handleReady);
+    v.addEventListener("canplay", handleReady);
+    v.addEventListener("ended", handleEnded);
+
+    if (v.readyState >= 1) {
+      handleReady();
+    }
+
+    playInterval = setInterval(() => {
+      if (heroLoops.current >= 5) {
+        clearInterval(playInterval);
+        return;
+      }
+      tryPlay();
+    }, 200);
+
+    return () => {
+      v.removeEventListener("loadedmetadata", handleReady);
+      v.removeEventListener("canplay", handleReady);
+      v.removeEventListener("ended", handleEnded);
+      if (playInterval) clearInterval(playInterval);
+    };
   }, []);
 
   // Load portfolio from API
@@ -487,17 +546,6 @@ export default function App() {
     loadCycWall();
   }, []);
 
-  // Handle hero video: loop 5 times then stop
-  const handleHeroVideoEnded = () => {
-    if (heroLoops < 4) {
-      setHeroLoops(prev => prev + 1);
-      if (heroVideoRef.current) {
-        heroVideoRef.current.currentTime = 0;
-        heroVideoRef.current.play();
-      }
-    }
-  };
-
   const toggleAddon = a => setAddons(p => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
   const filtered = filter === "All" ? portfolioItems : portfolioItems.filter(w => w.cat === filter);
 
@@ -521,7 +569,7 @@ export default function App() {
       {/* ── HERO ────────────────────────────────────────────────── */}
       <section id="hero" style={{minHeight:"100vh",padding:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",background:"#0D0D0D"}}>
         {VIDEOS.showreel
-          ? <video ref={heroVideoRef} autoPlay muted playsInline onEnded={handleHeroVideoEnded} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:.45}} src={VIDEOS.showreel}/>
+          ? <video ref={heroVideoRef} autoPlay muted playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:.45}} src={VIDEOS.showreel}/>
           : <div style={{position:"absolute",inset:0,background:"linear-gradient(145deg,#0D0D0D 0%,#1c0a2e 55%,#0d0808 100%)"}}/>
         }
 
