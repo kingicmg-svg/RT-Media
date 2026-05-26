@@ -124,6 +124,13 @@
       { id:"sand",   label:"Sandbags",                desc:"Extra ballast for stands & rigs" },
     ];
 
+    function mediaUrl(url) {
+      if (!url) return "";
+      if (/^(https?:|data:|blob:)/i.test(url)) return url;
+      if (url.startsWith("/")) return `${API_BASE}${url}`;
+      return url;
+    }
+
     /* ── Global CSS ─────────────────────────────────────────────────────────── */
     const CSS = `
       @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -358,40 +365,62 @@
     );
 
     /* ── Blob thumbnail ─────────────────────────────────────────────────────── */
-    function BlobThumb({ grad, br, height = 300, src, poster, label, catTag, children }) {
+    function BlobThumb({ grad, br, height = 300, src, poster, label, children }) {
       const vidRef = React.useRef(null);
-      const blobRef = React.useRef(null);
-      const [isInView, setIsInView] = React.useState(false);
+      const [isPlaying, setIsPlaying] = React.useState(false);
+      const [videoError, setVideoError] = React.useState(false);
+      const hasVideo = Boolean(src) && !videoError;
 
-      React.useEffect(() => {
-        const observer = new IntersectionObserver(([entry]) => {
-          setIsInView(entry.isIntersecting);
-          if (entry.isIntersecting && vidRef.current) {
-            vidRef.current.play().catch(() => {});
-          } else if (!entry.isIntersecting && vidRef.current) {
+      const togglePlayback = () => {
+        if (!hasVideo) return;
+        if (isPlaying) {
+          if (vidRef.current) {
             vidRef.current.pause();
+            vidRef.current.currentTime = 0;
           }
-        }, { threshold: 0.5 });
-
-        if (blobRef.current) {
-          observer.observe(blobRef.current);
+          setIsPlaying(false);
+          return;
         }
-        return () => observer.disconnect();
-      }, []);
+        setIsPlaying(true);
+        requestAnimationFrame(() => {
+          if (vidRef.current) {
+            vidRef.current.currentTime = 0;
+            vidRef.current.play().catch(() => setIsPlaying(false));
+          }
+        });
+      };
 
       return (
-        <div ref={blobRef} className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:"pointer" }}
-          onMouseEnter={() => vidRef.current && vidRef.current.play()}
-          onMouseLeave={() => vidRef.current && vidRef.current.pause()}
-          onClick={() => src && window.open(src, '_blank')}
-        >
-          {src
-            ? <video ref={vidRef} src={src} poster={poster} muted playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
-            : null
-          }
-          {(label || catTag) && (
-            <div style={{position:"absolute",bottom:14,left:14,right:14,display:"flex",alignItems:"flex-end",justifyContent:"flex-start",pointerEvents:"none"}}>
-              {catTag && <span className="cat-tag">{catTag}</span>}
+        <div className="blob" style={{ borderRadius: br, background: grad, height, overflow:"hidden", position:"relative", cursor:hasVideo?"pointer":"default" }} onClick={togglePlayback}>
+          {poster && (
+            <img src={poster} alt={label || "Portfolio thumbnail"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+          )}
+          {hasVideo && isPlaying && (
+            <video
+              ref={vidRef}
+              src={src}
+              poster={poster}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls={false}
+              disablePictureInPicture
+              controlsList="nodownload noplaybackrate noremoteplayback"
+              onError={() => { setVideoError(true); setIsPlaying(false); }}
+              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}
+            />
+          )}
+          {!poster && !hasVideo && (
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 20px",textAlign:"center",fontFamily:"'DM Sans'",fontSize:12,color:"rgba(255,255,255,.68)",letterSpacing:".06em",textTransform:"uppercase"}}>
+              Thumbnail Coming Soon
+            </div>
+          )}
+          {hasVideo && !isPlaying && (
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+              <div style={{padding:"10px 18px",borderRadius:999,border:"1px solid rgba(255,255,255,.38)",background:"rgba(0,0,0,.35)",fontFamily:"'DM Sans'",fontSize:12,fontWeight:600,letterSpacing:".08em",textTransform:"uppercase",color:"#fff"}}>
+                Play
+              </div>
             </div>
           )}
           {label && (
@@ -444,7 +473,7 @@
     ];
 
     const STATS = [
-      { val:150, suffix:"+", label:"Projects Delivered" },
+      { val:250, suffix:"+", label:"Projects Delivered" },
       { val:8,   suffix:" yrs", label:"In Production" },
       { val:40,  suffix:"+", label:"Crew Network" },
       { val:100, suffix:"%", label:"Client Satisfaction" },
@@ -578,7 +607,6 @@
                   <BlobThumb
                     grad={GRADS[i%5]} br={BLOBS[i%5]}
                     height={310} src={item.src} poster={item.poster}
-                    catTag={item.cat}
                   />
                   <div style={{marginTop:20,paddingLeft:2}}>
                     <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{item.title}</h3>
@@ -619,8 +647,9 @@
     }
 
     /* ══ STUDIO SECTION ══════════════════════════════════════════════════════ */
-    function StudioSection({ setTab }) {
+    function StudioSection({ setTab, items }) {
       const [ref, inView] = useInView(0.08);
+      const studioItems = items && items.length ? items : VIDEOS.studio;
       return (
         <section id="studio" className="sec" ref={ref} style={{background:"#0D0D0D"}}>
           <div style={{maxWidth:1200,margin:"0 auto"}}>
@@ -634,12 +663,12 @@
             <div className="studio-layout" style={{display:"flex",gap:20,marginBottom:72,alignItems:"stretch"}}>
               <div className={`rs${inView?" v":""}`} style={{flex:2,minWidth:200,transitionDelay:"0s"}}>
                 <BlobThumb grad={GRADS[0]} br={BLOBS[0]} height={440}
-                  src={VIDEOS.studio[0]?.src} poster={VIDEOS.studio[0]?.poster}
-                  label={VIDEOS.studio[0]?.label}
+                  src={studioItems[0]?.src} poster={studioItems[0]?.poster}
+                  label={studioItems[0]?.label}
                 />
               </div>
               <div className="studio-side" style={{flex:1,minWidth:180,display:"flex",flexDirection:"column",gap:20}}>
-                {VIDEOS.studio.slice(1).map((v,i)=>(
+                {studioItems.slice(1).map((v,i)=>(
                   <div key={i} className={`rs${inView?" v":""}`} style={{flex:1,transitionDelay:`${(i+1)*.12}s`}}>
                     <BlobThumb grad={GRADS[i+2]} br={BLOBS[i+2]} height={210}
                       src={v.src} poster={v.poster} label={v.label}
@@ -1357,6 +1386,8 @@
       const [cyc,      setCyc]        = useState({ name:"", email:"", phone:"", date:"" });
       const [proj,     setProj]       = useState({ name:"", email:"", phone:"", service:"", message:"" });
       const [done,     setDone]       = useState(false);
+      const [portfolioItems, setPortfolioItems] = useState(VIDEOS.work);
+      const [cycWallItems, setCycWallItems] = useState(VIDEOS.studio);
 
       useEffect(() => {
         const fn = () => setScrolled(window.scrollY > 60);
@@ -1369,11 +1400,73 @@
         document.body.style.overflow = menuOpen ? "hidden" : "";
       }, [menuOpen]);
 
+      useEffect(() => {
+        let cancelled = false;
+
+        const mapPortfolio = (p, i) => ({
+          id: p.id || i + 1,
+          src: mediaUrl(p.src || ""),
+          poster: mediaUrl(p.poster || p.thumbnail || ""),
+          title: p.title || VIDEOS.work[i]?.title || `Project ${i + 1}`,
+          cat: p.cat || p.category || "Music Video",
+          order: Number.isFinite(Number(p.order)) ? Number(p.order) : i,
+        });
+
+        const mapCyc = (c, i) => ({
+          src: mediaUrl(c.src || c.url || ""),
+          poster: mediaUrl(c.poster || c.thumbnail || c.url || ""),
+          label: c.label || VIDEOS.studio[i]?.label || `CYC Wall ${i + 1}`,
+        });
+
+        (async () => {
+          try {
+            const pr = await fetch(`${API_BASE}/portfolio`);
+            if (pr.ok) {
+              const data = await pr.json();
+              if (!cancelled && Array.isArray(data) && data.length) {
+                const normalized = data.map(mapPortfolio).sort((a, b) => a.order - b.order);
+                const merged = VIDEOS.work.map((fallback, i) => {
+                  const fromAdmin = normalized[i] || {};
+                  return {
+                    id: fromAdmin.id || fallback.id,
+                    src: fromAdmin.src || fallback.src,
+                    poster: fromAdmin.poster || fallback.poster,
+                    title: fromAdmin.title || fallback.title,
+                    cat: fromAdmin.cat || fallback.cat,
+                  };
+                });
+                setPortfolioItems(merged);
+              }
+            }
+          } catch {}
+
+          try {
+            const cr = await fetch(`${API_BASE}/cyc-wall`);
+            if (cr.ok) {
+              const data = await cr.json();
+              if (!cancelled && Array.isArray(data) && data.length) {
+                const normalized = data.map(mapCyc);
+                const merged = VIDEOS.studio.map((fallback, i) => ({
+                  src: normalized[i]?.src || fallback.src,
+                  poster: normalized[i]?.poster || fallback.poster,
+                  label: normalized[i]?.label || fallback.label,
+                }));
+                setCycWallItems(merged);
+              }
+            }
+          } catch {}
+        })();
+
+        return () => {
+          cancelled = true;
+        };
+      }, []);
+
       const closeMenu = () => setMenuOpen(false);
 
       const toggleAddon    = a => setAddons(p    => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
       const toggleCycAddon = a => setCycAddons(p => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
-      const filtered = filter === "All" ? VIDEOS.work : VIDEOS.work.filter(w => w.cat === filter);
+      const filtered = filter === "All" ? portfolioItems : portfolioItems.filter(w => w.cat === filter);
 
       return (
         <>
@@ -1442,7 +1535,7 @@
           <WorkSection filter={filter} setFilter={setFilter} items={filtered}/>
           <AboutSection/>
           <ServicesSection/>
-          <StudioSection setTab={setTab}/>
+          <StudioSection setTab={setTab} items={cycWallItems}/>
           <BookSection
             tab={tab} setTab={setTab}
             dur={dur} setDur={setDur}
