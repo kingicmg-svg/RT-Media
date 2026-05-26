@@ -623,7 +623,7 @@
                     height={310} src={item.src} poster={item.poster}
                   />
                   <div style={{marginTop:20,paddingLeft:2}}>
-                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanText(item.title) || titleFromMedia(item.src) || titleFromMedia(item.poster) || `Project ${i + 1}`}</h3>
+                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanText(item.title) || titleFromMedia(item.src) || titleFromMedia(item.poster) || ""}</h3>
                   </div>
                 </div>
               ))}
@@ -1426,7 +1426,7 @@
             titleFromMedia(p.src) ||
             titleFromMedia(p.poster || p.thumbnail) ||
             VIDEOS.work[i]?.title ||
-            `Project ${i + 1}`,
+            "",
           cat: cleanText(p.cat) || cleanText(p.category) || "Music Video",
           order: Number.isFinite(Number(p.order)) ? Number(p.order) : i,
         });
@@ -1457,7 +1457,7 @@
                       cleanText(fallback.title) ||
                       titleFromMedia(fallback.src) ||
                       titleFromMedia(fallback.poster) ||
-                      `Project ${i + 1}`,
+                      "",
                     cat: cleanText(fromAdmin.cat) || fallback.cat || "Music Video",
                   };
                 });
