@@ -590,7 +590,7 @@ async function doLogin() {
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
     await loadSettings();
-    renderBookings();
+    await reloadBookings();
   } catch(e) {
     document.getElementById("loginErr").textContent = "Connection error: " + e.message;
   }
@@ -615,7 +615,7 @@ async function verifyTwoFa() {
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
     await loadSettings();
-    renderBookings();
+    await reloadBookings();
   } catch(e) {
     document.getElementById("twoFaErr").textContent = "Error: " + e.message;
   }
