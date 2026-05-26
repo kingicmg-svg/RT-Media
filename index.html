@@ -308,7 +308,6 @@
         };
 
         const handleReady = () => {
-          v.currentTime = 0;
           tryPlay();
         };
 
@@ -317,7 +316,7 @@
         v.addEventListener("canplay", handleReady);
 
         if (v.readyState >= 1) {
-          handleReady();
+          tryPlay();
         }
 
         playInterval = setInterval(() => {

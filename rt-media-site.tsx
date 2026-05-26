@@ -483,7 +483,6 @@ export default function App() {
     };
 
     const handleReady = () => {
-      v.currentTime = 0;
       tryPlay();
     };
 
@@ -503,7 +502,7 @@ export default function App() {
     v.addEventListener("ended", handleEnded);
 
     if (v.readyState >= 1) {
-      handleReady();
+      tryPlay();
     }
 
     playInterval = setInterval(() => {
