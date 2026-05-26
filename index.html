@@ -160,6 +160,11 @@
       return base.replace(/[_]+/g, " ");
     }
 
+    function numberOr(value, fallback) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
     const AUTO_THUMB_TIME_SECONDS = 70;
     const videoThumbCache = new Map();
 
@@ -777,9 +782,13 @@
     }
 
     /* ══ STUDIO SECTION ══════════════════════════════════════════════════════ */
-    function StudioSection({ setTab, items }) {
+    function StudioSection({ setTab, items, enabledServices }) {
       const [ref, inView] = useInView(0.08);
       const studioItems = items && items.length ? items : VIDEOS.studio;
+      const ctaCards = [
+        { serviceId:"cyc", title:"Rent the CYC Wall", desc:"Bring your own director, your own crew — we set the stage. Space + full lighting setup, 2-hour minimum.", cta:"Check Availability", grad:GRADS[0], tab:"cyc" },
+        { serviceId:"production", title:"Book a Production", desc:"CYC wall + your choice of Round Table Media crew. Select exactly what you need, we handle the rest.", cta:"Start a Project", grad:GRADS[1], tab:"production" },
+      ].filter(c => enabledServices[c.serviceId] !== false);
       return (
         <section id="studio" className="sec" ref={ref} style={{background:"#0D0D0D"}}>
           <div style={{maxWidth:1200,margin:"0 auto"}}>
@@ -808,10 +817,7 @@
               </div>
             </div>
             <div className="cta-cards" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:22}}>
-              {[
-                {title:"Rent the CYC Wall", desc:"Bring your own director, your own crew — we set the stage. Space + full lighting setup, 2-hour minimum.", cta:"Check Availability", grad:GRADS[0], tab:"cyc"},
-                {title:"Book a Production", desc:"CYC wall + your choice of Round Table Media crew. Select exactly what you need, we handle the rest.", cta:"Start a Project", grad:GRADS[1], tab:"production"},
-              ].map((c,i)=>(
+              {ctaCards.map((c,i)=>(
                 <a key={i} href="#book" onClick={()=>setTab(c.tab)}>
                   <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:22,padding:42,transition:"background .2s",cursor:"pointer"}}
                     onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.09)"}
@@ -833,11 +839,15 @@
     }
 
     /* ══ BOOK SECTION ════════════════════════════════════════════════════════ */
-    function BookSection({ tab, setTab, dur, setDur, addons, toggleAddon, cycAddons, toggleCycAddon, cyc, setCyc, proj, setProj, done, setDone }) {
+    function BookSection({ tab, setTab, dur, setDur, addons, toggleAddon, cycAddons, toggleCycAddon, cyc, setCyc, proj, setProj, done, setDone, enabledServices, serviceLabels, cycAddonOptions, crewOptions, bookingConfig, studioEmail }) {
       const [ref, inView] = useInView(0.05);
       const [calLink,  setCalLink]  = useState("");
       const [confNum,  setConfNum]  = useState("");
       const [clientCalLink, setClientCalLink] = useState("");
+      const tabButtons = [
+        { id:"cyc", label:serviceLabels.cyc },
+        { id:"production", label:serviceLabels.production },
+      ].filter(t => enabledServices[t.id] !== false);
 
       function makeConfNum() {
         return "RTM-" + Date.now().toString(36).toUpperCase().slice(-6);
@@ -872,10 +882,13 @@
         try {
           const dateStr = selDate ? selDate.toLocaleDateString("en-CA") : "";
           const addOnList = selectedAddons.length
-            ? selectedAddons.map(id => CYC_ADDONS.find(a=>a.id===id)?.label).join(", ")
+            ? selectedAddons.map(id => cycAddonOptions.find(a=>a.id===id)?.label).filter(Boolean).join(", ")
             : "None";
-          const studio_total = hrs * 100 + 10;
-          const hst          = Math.round(studio_total * 0.13 * 100) / 100;
+          const hourlyRate = numberOr(bookingConfig.hourlyRate, 100);
+          const cleaningFee = numberOr(bookingConfig.cleaningFee, 10);
+          const hstRate = numberOr(bookingConfig.hstRate, 0.13);
+          const studio_total = hrs * hourlyRate + cleaningFee;
+          const hst          = Math.round(studio_total * hstRate * 100) / 100;
           const res = await fetch(`${API_BASE}/booking`, {
             method:"POST",
             headers:{"Content-Type":"application/json"},
@@ -916,7 +929,7 @@
           setConfNum(data.conf);
           setDone(true);
         } catch(e) {
-          setSubmitErr("Booking failed — " + e.message + ". Please email " + CONTACT_EMAIL);
+          setSubmitErr("Booking failed — " + e.message + ". Please email " + (studioEmail || CONTACT_EMAIL));
         } finally {
           setSubmitting(false);
         }
@@ -941,7 +954,7 @@
           setConfNum(data.conf);
           setDone(true);
         } catch(e) {
-          setSubmitErr("Submission failed — " + e.message + ". Please email " + CONTACT_EMAIL);
+          setSubmitErr("Submission failed — " + e.message + ". Please email " + (studioEmail || CONTACT_EMAIL));
         } finally {
           setSubmitting(false);
         }
@@ -953,7 +966,7 @@
             <p className="sl">Book</p>
             <h2 className="sh" style={{marginBottom:48}}>Let's Work<br/>Together</h2>
             <div className="tr">
-              {[{id:"cyc",label:"Rent the CYC Wall"},{id:"production",label:"Book a Production"}].map(t=>(
+              {tabButtons.map(t=>(
                 <button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.label}</button>
               ))}
             </div>
@@ -991,11 +1004,15 @@
                   Submit Another
                 </button>
               </div>
-            ) : tab==="cyc" ? (
+            ) : tab==="cyc" && enabledServices.cyc !== false ? (
               <CYCForm dur={dur} setDur={setDur} cycAddons={cycAddons} toggleCycAddon={toggleCycAddon}
-                cyc={cyc} setCyc={setCyc} onSubmit={submitCYC}/>
+                cyc={cyc} setCyc={setCyc} onSubmit={submitCYC}
+                cycAddonOptions={cycAddonOptions}
+                bookingConfig={bookingConfig}
+              />
             ) : (
               <ProductionForm addons={addons} toggleAddon={toggleAddon} proj={proj} setProj={setProj}
+                crewOptions={crewOptions}
                 onSubmit={submitProduction}/>
             )}
           </div>
@@ -1004,19 +1021,36 @@
     }
 
     /* ── CYC Wall Form ──────────────────────────────────────────────────────── */
-    function CYCForm({ dur, setDur, cycAddons, toggleCycAddon, cyc, setCyc, sending, onSubmit }) {
+    function CYCForm({ dur, setDur, cycAddons, toggleCycAddon, cyc, setCyc, sending, onSubmit, cycAddonOptions, bookingConfig }) {
       const [step,      setStep]     = useState(1);
       const [selDate,   setSelDate]  = useState(null);
       const [selTime,   setSelTime]  = useState(null);
       const [calDate,   setCalDate]  = useState(new Date());
       const [payMethod, setPayMethod]= useState(null);
-      const [customHrs, setCustomHrs]= useState(2);
+      const minHours = Math.max(1, Math.round(numberOr(bookingConfig.minHours, 2)));
+      const maxHours = Math.max(minHours, Math.round(numberOr(bookingConfig.maxHours, 12)));
+      const hourlyRate = numberOr(bookingConfig.hourlyRate, 100);
+      const cleaningFee = numberOr(bookingConfig.cleaningFee, 10);
+      const HST_RATE = numberOr(bookingConfig.hstRate, 0.13);
+      const studioOpen = Math.round(numberOr(bookingConfig.studioOpen, 9));
+      const studioClose = Math.round(numberOr(bookingConfig.studioClose, 22));
+      const [customHrs, setCustomHrs]= useState(minHours);
 
-      const durObj  = DURATIONS.find(d => d.key === dur) || DURATIONS[0];
+      useEffect(() => {
+        setCustomHrs(h => Math.min(maxHours, Math.max(minHours, h)));
+      }, [minHours, maxHours]);
+
+      const durationOptions = DURATIONS.map(d => {
+        if (d.key === "custom") {
+          return { ...d, sub:`Choose your hours (${minHours}-${maxHours})`, price:"", hrs:0 };
+        }
+        const adjustedHrs = Math.min(maxHours, Math.max(minHours, d.hrs));
+        return { ...d, hrs: adjustedHrs, price: `$${adjustedHrs * hourlyRate}` };
+      });
+
+      const durObj  = durationOptions.find(d => d.key === dur) || durationOptions[0];
       const hrs     = dur === "custom" ? customHrs : durObj.hrs;
-      const HST_RATE     = 0.13;
-      const studioTotal  = hrs * 100;
-      const cleaningFee  = 10;
+      const studioTotal  = hrs * hourlyRate;
       const subtotal     = studioTotal + cleaningFee;
       const hst          = Math.round(subtotal * HST_RATE * 100) / 100;
       const grandTotal   = Math.round((subtotal + hst) * 100) / 100;
@@ -1032,9 +1066,7 @@
       const daysInMonth = new Date(year, month+1, 0).getDate();
       const CAL_DAYS    = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
-      // Generate start times: studio closes at 10 PM (22:00), so last start = 22 - hrs
-      const studioOpen = 9; // 9 AM
-      const studioClose = 22; // 10 PM
+      // Generate start times from admin-configured studio hours.
       const timeSlots = (() => {
         const slots = [];
         for (let h = studioOpen; h + hrs <= studioClose; h++) {
@@ -1080,12 +1112,12 @@
         <div>
           <p style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".06em",marginBottom:22,color:"#0D0D0D"}}>SELECT DURATION</p>
           <div className="dur-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
-            {DURATIONS.map(d=>(
+            {durationOptions.map(d=>(
               <button key={d.key} className={`dc${dur===d.key?" on":""}`} onClick={()=>{setDur(d.key);setSelTime(null);}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:".04em",color:"#0D0D0D",marginBottom:4}}>{d.label}</div>
                 <div style={{fontFamily:"'DM Sans'",fontSize:11,color:"#888",marginBottom:10}}>{d.sub}</div>
                 {d.key === "custom"
-                  ? <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:".04em",...gradTxt}}>$100/hr</div>
+                  ? <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:".04em",...gradTxt}}>${hourlyRate}/hr</div>
                   : <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",...gradTxt}}>{d.price}</div>
                 }
               </button>
@@ -1096,16 +1128,16 @@
             <div style={{display:"flex",alignItems:"center",gap:16,background:"#FFF5F7",border:"1.5px solid #FF3D6B",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
               <span style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:600,color:"#0D0D0D",flex:1}}>Hours needed <span style={{color:"#aaa",fontWeight:400}}>(2 min)</span></span>
               <div style={{display:"flex",alignItems:"center",gap:0,border:"1.5px solid #e0e0e0",borderRadius:8,overflow:"hidden",background:"#fff"}}>
-                <button onClick={()=>setCustomHrs(h=>Math.max(2,h-1))} style={{width:36,height:36,border:"none",background:"transparent",fontSize:18,cursor:"pointer",color:customHrs<=2?"#ccc":"#0D0D0D",fontWeight:300}}>−</button>
+                <button onClick={()=>setCustomHrs(h=>Math.max(minHours,h-1))} style={{width:36,height:36,border:"none",background:"transparent",fontSize:18,cursor:"pointer",color:customHrs<=minHours?"#ccc":"#0D0D0D",fontWeight:300}}>−</button>
                 <span style={{width:40,textAlign:"center",fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:".04em",color:"#0D0D0D"}}>{customHrs}</span>
-                <button onClick={()=>setCustomHrs(h=>Math.min(12,h+1))} style={{width:36,height:36,border:"none",background:"transparent",fontSize:18,cursor:"pointer",color:customHrs>=12?"#ccc":"#0D0D0D",fontWeight:300}}>+</button>
+                <button onClick={()=>setCustomHrs(h=>Math.min(maxHours,h+1))} style={{width:36,height:36,border:"none",background:"transparent",fontSize:18,cursor:"pointer",color:customHrs>=maxHours?"#ccc":"#0D0D0D",fontWeight:300}}>+</button>
               </div>
-              <span style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:".04em",...gradTxt,minWidth:60,textAlign:"right"}}>${customHrs*100}</span>
+              <span style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:".04em",...gradTxt,minWidth:60,textAlign:"right"}}>${customHrs*hourlyRate}</span>
             </div>
           )}
           <div style={{background:"#F7F6F4",borderRadius:12,padding:"12px 18px",marginBottom:36}}>
             <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#555",lineHeight:1.6}}>
-              <strong style={{color:"#0D0D0D"}}>Included:</strong> Infinity wall + full lighting setup · $100/hr · 2-hr minimum
+              <strong style={{color:"#0D0D0D"}}>Included:</strong> Infinity wall + full lighting setup · ${hourlyRate}/hr · {minHours}-hr minimum
             </p>
           </div>
 
@@ -1173,7 +1205,7 @@
           <p style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".06em",marginBottom:8,color:"#0D0D0D"}}>ADD-ONS</p>
           <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#888",marginBottom:20}}>Optional — select what you need, rates included on quote</p>
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:44}}>
-            {CYC_ADDONS.map(a=>{
+            {cycAddonOptions.map(a=>{
               const on = cycAddons.includes(a.id);
               return (
                 <button key={a.id} onClick={()=>toggleCycAddon(a.id)} style={{
@@ -1221,20 +1253,20 @@
             {cycAddons.length > 0 && (
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:"1px solid #e8e8e8"}}>
                 <span style={{fontFamily:"'DM Sans'",fontSize:12,fontWeight:500,color:"#555"}}>Add-ons: </span>
-                <span style={{fontFamily:"'DM Sans'",fontSize:12,color:"#888"}}>{cycAddons.map(id=>CYC_ADDONS.find(a=>a.id===id)?.label).join("  ·  ")}</span>
+                <span style={{fontFamily:"'DM Sans'",fontSize:12,color:"#888"}}>{cycAddons.map(id=>cycAddonOptions.find(a=>a.id===id)?.label).filter(Boolean).join("  ·  ")}</span>
               </div>
             )}
             {/* Price lines */}
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-              <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Studio time ({hrs}h × $100/hr)</span>
-              <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>${studioTotal}.00</span>
+              <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Studio time ({hrs}h × ${hourlyRate}/hr)</span>
+              <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>${studioTotal.toFixed(2)}</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Cleaning fee</span>
-              <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>$10.00</span>
+              <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>${cleaningFee.toFixed(2)}</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:18,paddingBottom:18,borderBottom:"1px solid #e0e0e0"}}>
-              <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#888"}}>HST (13%)</span>
+              <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#888"}}>HST ({Math.round(HST_RATE * 100)}%)</span>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#888"}}>${hst.toFixed(2)}</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:14,borderBottom:"1px solid #e0e0e0"}}>
@@ -1366,7 +1398,7 @@
     }
 
     /* ── Production Form ────────────────────────────────────────────────────── */
-    function ProductionForm({ addons, toggleAddon, proj, setProj, onSubmit }) {
+    function ProductionForm({ addons, toggleAddon, proj, setProj, onSubmit, crewOptions }) {
       return (
         <div>
           <div className="form-row" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
@@ -1385,7 +1417,7 @@
           <p style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".06em",marginBottom:8,color:"#0D0D0D"}}>CREW ADD-ONS</p>
           <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#888",marginBottom:20}}>Optional — rates included on your custom quote</p>
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:40}}>
-            {CREW.map(c=>{
+            {crewOptions.map(c=>{
               const on = addons.includes(c.label);
               return (
                 <button key={c.label} onClick={()=>toggleAddon(c.label)} style={{
@@ -1415,7 +1447,8 @@
       );
     }
 
-    function Footer() {
+    function Footer({ studioInfo }) {
+      const studioEmail = cleanText(studioInfo?.studio_email) || CONTACT_EMAIL;
       return (
         <footer style={{background:"#0D0D0D",borderTop:"1px solid #333",padding:"80px 56px 40px"}}>
           <div style={{maxWidth:1200,margin:"0 auto"}}>
@@ -1431,7 +1464,7 @@
                 </p>
                 <div style={{display:"flex",gap:12}}>
                   {[
-                    {icon:"📧",link:"mailto:bookings@roundtablemedia.ca",label:"Email"},
+                    {icon:"📧",link:`mailto:${studioEmail}`,label:"Email"},
                     {icon:"📱",link:"tel:+14165551234",label:"Call"},
                   ].map(c=>(
                     <a key={c.label} href={c.link} title={c.label} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.05)",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.background="#FF3D6B"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.05)"}>
@@ -1476,7 +1509,7 @@
                   </div>
                   <div>
                     <p style={{margin:0,color:"rgba(255,255,255,.4)",fontSize:12,letterSpacing:".05em",marginBottom:4}}>📧 EMAIL</p>
-                    <a href="mailto:bookings@roundtablemedia.ca" style={{color:"rgba(255,255,255,.6)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#FF3D6B"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.6)"}>bookings@roundtablemedia.ca</a>
+                    <a href={`mailto:${studioEmail}`} style={{color:"rgba(255,255,255,.6)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#FF3D6B"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.6)"}>{studioEmail}</a>
                   </div>
                   <div>
                     <p style={{margin:0,color:"rgba(255,255,255,.4)",fontSize:12,letterSpacing:".05em",marginBottom:4}}>🕐 HOURS</p>
@@ -1519,6 +1552,24 @@
       const [portfolioItems, setPortfolioItems] = useState(VIDEOS.work);
       const [cycWallItems, setCycWallItems] = useState(VIDEOS.studio);
       const [heroReelSrc, setHeroReelSrc] = useState(VIDEOS.showreel);
+      const [siteSettings, setSiteSettings] = useState({
+        hourly_rate: 100,
+        cleaning_fee: 10,
+        hst_rate: 0.13,
+        min_hours: 2,
+        max_hours: 12,
+        studio_open: 9,
+        studio_close: 22,
+        studio_name: "Round Table Media",
+        studio_city: "Toronto, Ontario",
+        studio_email: CONTACT_EMAIL,
+        services: [
+          { id:"cyc", label:"Rent the CYC Wall", enabled:true },
+          { id:"production", label:"Book a Production", enabled:true },
+        ],
+        cyc_addons: CYC_ADDONS.map(a => ({ ...a, enabled: true })),
+        crew_addons: CREW.map(c => ({ ...c, enabled: true })),
+      });
 
       useEffect(() => {
         const fn = () => setScrolled(window.scrollY > 60);
@@ -1559,6 +1610,24 @@
             const sr = await fetch(`${API_BASE}/settings`);
             if (sr.ok) {
               const sData = await sr.json();
+              if (!cancelled) {
+                setSiteSettings(prev => ({
+                  ...prev,
+                  hourly_rate: numberOr(sData.hourly_rate, prev.hourly_rate),
+                  cleaning_fee: numberOr(sData.cleaning_fee, prev.cleaning_fee),
+                  hst_rate: numberOr(sData.hst_rate, prev.hst_rate),
+                  min_hours: Math.max(1, Math.round(numberOr(sData.min_hours, prev.min_hours))),
+                  max_hours: Math.max(1, Math.round(numberOr(sData.max_hours, prev.max_hours))),
+                  studio_open: Math.round(numberOr(sData.studio_open, prev.studio_open)),
+                  studio_close: Math.round(numberOr(sData.studio_close, prev.studio_close)),
+                  studio_name: cleanText(sData.studio_name) || prev.studio_name,
+                  studio_city: cleanText(sData.studio_city) || prev.studio_city,
+                  studio_email: cleanText(sData.studio_email) || prev.studio_email,
+                  services: Array.isArray(sData.services) && sData.services.length ? sData.services : prev.services,
+                  cyc_addons: Array.isArray(sData.cyc_addons) && sData.cyc_addons.length ? sData.cyc_addons : prev.cyc_addons,
+                  crew_addons: Array.isArray(sData.crew_addons) && sData.crew_addons.length ? sData.crew_addons : prev.crew_addons,
+                }));
+              }
               const heroOverride = mediaUrl(cleanText(sData.hero_reel_url || ""));
               if (!cancelled && heroOverride) {
                 setHeroReelSrc(heroOverride);
@@ -1617,6 +1686,49 @@
       }, []);
 
       const closeMenu = () => setMenuOpen(false);
+
+      const serviceById = Array.isArray(siteSettings.services) ? siteSettings.services.reduce((acc, s) => {
+        if (s && s.id) acc[s.id] = s;
+        return acc;
+      }, {}) : {};
+      const enabledServices = {
+        cyc: serviceById.cyc ? serviceById.cyc.enabled !== false : true,
+        production: serviceById.production ? serviceById.production.enabled !== false : true,
+      };
+      const serviceLabels = {
+        cyc: cleanText(serviceById.cyc?.label) || "Rent the CYC Wall",
+        production: cleanText(serviceById.production?.label) || "Book a Production",
+      };
+
+      useEffect(() => {
+        if (!enabledServices.cyc && tab === "cyc" && enabledServices.production) {
+          setTab("production");
+        } else if (!enabledServices.production && tab === "production" && enabledServices.cyc) {
+          setTab("cyc");
+        }
+      }, [enabledServices.cyc, enabledServices.production, tab]);
+
+      const cycAddonOptions = (Array.isArray(siteSettings.cyc_addons) ? siteSettings.cyc_addons : [])
+        .filter(a => a && a.enabled !== false && cleanText(a.label))
+        .map((a, i) => ({
+          id: cleanText(a.id) || `addon_${i}`,
+          label: cleanText(a.label),
+          desc: cleanText(a.desc),
+        }));
+
+      const crewOptions = (Array.isArray(siteSettings.crew_addons) ? siteSettings.crew_addons : [])
+        .filter(c => c && c.enabled !== false && cleanText(c.label))
+        .map(c => ({ label: cleanText(c.label), rate: cleanText(c.rate) || "Rate on quote" }));
+
+      const bookingConfig = {
+        hourlyRate: numberOr(siteSettings.hourly_rate, 100),
+        cleaningFee: numberOr(siteSettings.cleaning_fee, 10),
+        hstRate: numberOr(siteSettings.hst_rate, 0.13),
+        minHours: Math.max(1, Math.round(numberOr(siteSettings.min_hours, 2))),
+        maxHours: Math.max(1, Math.round(numberOr(siteSettings.max_hours, 12))),
+        studioOpen: Math.round(numberOr(siteSettings.studio_open, 9)),
+        studioClose: Math.round(numberOr(siteSettings.studio_close, 22)),
+      };
 
       const toggleAddon    = a => setAddons(p    => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
       const toggleCycAddon = a => setCycAddons(p => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
@@ -1689,7 +1801,7 @@
           <WorkSection filter={filter} setFilter={setFilter} items={filtered}/>
           <AboutSection/>
           <ServicesSection/>
-          <StudioSection setTab={setTab} items={cycWallItems}/>
+          <StudioSection setTab={setTab} items={cycWallItems} enabledServices={enabledServices}/>
           <BookSection
             tab={tab} setTab={setTab}
             dur={dur} setDur={setDur}
@@ -1698,8 +1810,14 @@
             cyc={cyc} setCyc={setCyc}
             proj={proj} setProj={setProj}
             done={done} setDone={setDone}
+            enabledServices={enabledServices}
+            serviceLabels={serviceLabels}
+            cycAddonOptions={cycAddonOptions}
+            crewOptions={crewOptions}
+            bookingConfig={bookingConfig}
+            studioEmail={cleanText(siteSettings.studio_email) || CONTACT_EMAIL}
           />
-          <Footer/>
+          <Footer studioInfo={siteSettings}/>
         </>
       );
     }
