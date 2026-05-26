@@ -250,8 +250,6 @@
         .ri{font-size:16px!important} /* prevent iOS zoom on focus */
         footer{padding:48px 20px!important}
         .hero-stack h1{font-size:clamp(58px,14vw,90px)!important}
-        #faq{padding:60px 20px!important}
-        #faq h2{font-size:clamp(36px,10vw,48px)!important}
       }
 
       @media(max-width:400px){
@@ -272,64 +270,54 @@
       }
     `;
 
-    /* ── Hero video (ref-forced muted + play for all browsers) ─────────────── */
+    /* ── Hero video ───────────────────────────────────────────────────────── */
     function HeroVideo({ src }) {
       const ref = React.useRef(null);
       const loopCount = React.useRef(0);
-      
+
       React.useEffect(() => {
         const v = ref.current;
         if (!v) return;
-        
-        // Reset loop counter on component mount
+
         loopCount.current = 0;
-        
         v.muted = true;
-        v.setAttribute('muted', '');
+        v.setAttribute("muted", "");
         v.controls = false;
-        v.currentTime = 0;
-        
-        // Handle loop: stop after 5 complete plays
-        v.onended = () => {
-          loopCount.current++;
+
+        const playFromStart = () => {
+          v.currentTime = 0;
+          v.play().catch(() => {});
+        };
+
+        const handleEnded = () => {
+          loopCount.current += 1;
           if (loopCount.current < 5) {
-            v.currentTime = 0;
-            v.play().catch(() => {});
-          } else {
-            v.pause();
+            playFromStart();
           }
         };
-        
-        // Play when metadata loads
-        v.onloadedmetadata = () => {
-          v.currentTime = 0;
-          v.play().catch(() => {});
-        };
-        
-        // Try to play immediately if already loaded
+
+        v.addEventListener("ended", handleEnded);
+        v.addEventListener("loadedmetadata", playFromStart);
+
         if (v.readyState >= 1) {
-          v.currentTime = 0;
-          v.play().catch(() => {});
+          playFromStart();
         }
-        
-        // Retry play every 100ms for first second
-        let attempts = 0;
-        const playInterval = setInterval(() => {
-          if (attempts++ > 10 || v.playing) {
-            clearInterval(playInterval);
-            return;
-          }
-          v.play().catch(() => {});
-        }, 100);
-        
+
+        return () => {
+          v.removeEventListener("ended", handleEnded);
+          v.removeEventListener("loadedmetadata", playFromStart);
+        };
       }, []);
+
       return (
         <video
-          ref={ref}
           autoPlay
           muted
           playsInline
+          preload="auto"
           controls={false}
+          ref={ref}
+          disablePictureInPicture
           crossOrigin="anonymous"
           src={src}
           style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:.45}}
@@ -1241,42 +1229,6 @@
       );
     }
 
-    /* ══ FOOTER ══════════════════════════════════════════════════════════════ */
-    function FAQ() {
-      const [openFAQ, setOpenFAQ] = useState(null);
-      const faqs = [
-        { q: "What formats do you deliver?", a: "We deliver in all standard formats: ProRes, DNxHD, H.264, and more. Raw footage available upon request." },
-        { q: "How long does production take?", a: "Timeline varies by project scope. Typically 2-4 weeks from shoot to final delivery. Rush options available." },
-        { q: "Do you offer color grading?", a: "Yes, all projects include professional color grading and sound design. VFX and animation available separately." },
-        { q: "Can we book the CYC wall for just a few hours?", a: "Yes, we offer flexible hourly booking. Minimum 1-hour sessions with package discounts for full-day rentals." },
-        { q: "Do you handle licensing and permits?", a: "We manage all necessary permits for location shoots. Client is responsible for music licensing." },
-        { q: "What's your revision policy?", a: "We include 2 rounds of revisions in standard packages. Additional revisions billed at $150/hour." },
-      ];
-      return (
-        <section id="faq" style={{background:"#0D0D0D",padding:"80px 56px",maxWidth:1200,margin:"0 auto"}}>
-          <h2 style={{fontFamily:"'Bebas Neue'",fontSize:48,letterSpacing:".06em",marginBottom:60,textAlign:"center",color:"#fff"}}>FREQUENTLY ASKED</h2>
-          <div style={{display:"grid",gap:12}}>
-            {faqs.map((item,i)=>(
-              <div key={i} style={{background:"#1a1a1a",border:"1px solid #333",borderRadius:12,overflow:"hidden",transition:"all .2s"}}>
-                <button onClick={()=>setOpenFAQ(openFAQ===i?null:i)} style={{
-                  width:"100%",padding:"20px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:"none",border:"none",cursor:"pointer",textAlign:"left"
-                }}>
-                  <span style={{fontFamily:"'DM Sans'",fontSize:15,fontWeight:600,color:"#fff"}}>{item.q}</span>
-                  <span style={{fontSize:20,color:"#FF3D6B",transition:"transform .2s",transform:openFAQ===i?"rotate(180deg)":"rotate(0deg)"}}>↓</span>
-                </button>
-                {openFAQ===i && (
-                  <div style={{padding:"0 24px 20px",borderTop:"1px solid #333",fontFamily:"'DM Sans'",fontSize:14,color:"#aaa",lineHeight:1.7}}>
-                    {item.a}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      );
-    }
-
     function Footer() {
       return (
         <footer style={{background:"#0D0D0D",borderTop:"1px solid #333",padding:"80px 56px 40px"}}>
@@ -1314,7 +1266,7 @@
                       onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.4)"}
                     >{l}</a>
                   ))}
-                  <a href="#faq" style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",transition:"color .2s",textDecoration:"none"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.4)"}>FAQ</a>
+                  <a href="./faq.html" style={{fontFamily:"'DM Sans'",fontSize:13,color:"rgba(255,255,255,.4)",transition:"color .2s",textDecoration:"none"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.4)"}>FAQ</a>
                 </div>
               </div>
 
@@ -1473,7 +1425,6 @@
             proj={proj} setProj={setProj}
             done={done} setDone={setDone}
           />
-          <FAQ/>
           <Footer/>
         </>
       );
