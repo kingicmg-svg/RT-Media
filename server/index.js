@@ -489,21 +489,40 @@ app.get("/security-info", async (req, res) => {
 // ── POST /toggle-2fa  (Enable/disable admin 2FA) ─────────────────────────────
 app.post("/toggle-2fa", async (req, res) => {
   try {
-    const { sessionToken, enabled } = req.body;
-    const { rows: sessions } = await pool.query(
-      "SELECT admin_id FROM login_sessions WHERE session_token=$1 AND expires_at > NOW()",
-      [sessionToken]
-    );
-    if (!sessions.length) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    const { sessionToken, secret, enabled } = req.body;
+    const authToken = sessionToken || secret;
+    if (!(await isAdminAuthorized(authToken))) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    let adminId = null;
+    if (sessionToken) {
+      const { rows: sessions } = await pool.query(
+        "SELECT admin_id FROM login_sessions WHERE session_token=$1 AND expires_at > NOW()",
+        [sessionToken]
+      );
+      adminId = sessions[0]?.admin_id || null;
+    }
+
+    if (!adminId) {
+      const { rows: users } = await pool.query(
+        "SELECT id FROM admin_users WHERE username='admin' ORDER BY id ASC LIMIT 1"
+      );
+      adminId = users[0]?.id || null;
+    }
+
+    if (!adminId) {
+      return res.status(404).json({ ok: false, error: "Admin user not found" });
+    }
 
     await pool.query(
       "UPDATE admin_users SET twofa_enabled=$1, updated_at=NOW() WHERE id=$2",
-      [Boolean(enabled), sessions[0].admin_id]
+      [Boolean(enabled), adminId]
     );
 
     const { rows: users } = await pool.query(
       "SELECT id, username, email, twofa_enabled, last_login FROM admin_users WHERE id=$1",
-      [sessions[0].admin_id]
+      [adminId]
     );
     res.json({ ok: true, user: users[0] || null });
   } catch (e) {
