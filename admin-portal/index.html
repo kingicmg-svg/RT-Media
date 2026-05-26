@@ -269,6 +269,26 @@
     <div id="page-portfolio" style="display:none">
       <div class="page-title">Portfolio & Gallery</div>
       <div class="page-sub">Map content to website blobs</div>
+
+      <!-- HERO REEL SECTION -->
+      <div class="s-section" style="margin-bottom:26px">
+        <h3>Hero Reel</h3>
+        <div style="margin-bottom:16px;color:#888;font-size:13px">Special upload/select area for the homepage hero reel. Default reel stays unchanged unless you click save override.</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;max-width:680px">
+          <div id="heroReelStatus" style="font-size:12px;color:#aaa;background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px 12px"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button type="button" onclick="document.getElementById('heroFile').click()" style="padding:10px 14px;border:1px solid #2a2a2a;border-radius:8px;background:transparent;color:#fff;cursor:pointer">Upload Hero Video</button>
+            <input type="file" id="heroFile" accept="video/*" onchange="uploadHeroReel()" style="display:none"/>
+            <select id="heroReelSelect" onchange="setHeroReelDraft(this.value)" style="min-width:280px;padding:10px 12px;border:1px solid #2a2a2a;border-radius:8px;background:#0d0d0d;color:#fff">
+              <option value="">Use default hero reel</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button type="button" onclick="saveHeroReelOverride()" style="padding:10px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;cursor:pointer;font-weight:600">Save Hero Override</button>
+            <button type="button" onclick="clearHeroReelOverride()" style="padding:10px 14px;border:1px solid #2a2a2a;border-radius:8px;background:transparent;color:#bbb;cursor:pointer">Clear Override</button>
+          </div>
+        </div>
+      </div>
       
       <!-- PORTFOLIO SECTION -->
       <div class="s-section" style="margin-bottom:48px">
@@ -933,12 +953,121 @@ async function doReschedule() {
 let portfolio = [];
 let cycWall = [];
 let availableVideos = [];
+let heroReelDraft = "";
+let heroReelSaved = "";
+
+const INDEX_DEFAULT_WORK = [
+  { id: 1, src: "./videos/Fancy_Interlude_LC.mov", poster: "", title: "GQNUMBERONE — Fancy Interlude", cat: "Music Video" },
+  { id: 2, src: "./videos/Egotisticalooks - TikTok Video.mov", poster: "", title: "Egotisticalooks — TikTok Video", cat: "Commercial" },
+  { id: 3, src: "./videos/Naensei - Back On it.mov", poster: "", title: "Naensei — Back On it", cat: "Music Video" },
+  { id: 4, src: "./videos/Bandit 7Teen - Mystic Breeze.mov", poster: "", title: "Bandit 7Teen — Mystic Breeze", cat: "Commercial" },
+  { id: 5, src: "", poster: "", title: "", cat: "Commercial" },
+  { id: 6, src: "", poster: "", title: "", cat: "Music Video" }
+];
+const INDEX_DEFAULT_HERO_REEL = "./videos/Web Reel-1.mov";
+
+function mergePortfolioWithIndexMap(items) {
+  const source = Array.isArray(items) ? items : [];
+  return INDEX_DEFAULT_WORK.map((fallback, i) => {
+    const fromApi = source[i] || {};
+    const category = fromApi.cat || fromApi.category || fallback.cat || "Music Video";
+    return {
+      id: fromApi.id || fallback.id || i + 1,
+      title: fromApi.title || fallback.title || "",
+      cat: category,
+      category,
+      src: fromApi.src || fallback.src || "",
+      poster: fromApi.poster || fromApi.thumbnail || fallback.poster || "",
+      thumbnail: fromApi.thumbnail || fromApi.poster || fallback.poster || "",
+      order: Number.isFinite(Number(fromApi.order)) ? Number(fromApi.order) : i
+    };
+  });
+}
+
+function mediaName(url) {
+  if (!url) return "";
+  const clean = String(url).split("?")[0].split("#")[0];
+  const name = clean.split("/").pop() || "";
+  return decodeURIComponent(name);
+}
+
+function renderHeroReelPanel() {
+  const sel = document.getElementById("heroReelSelect");
+  const status = document.getElementById("heroReelStatus");
+  if (!sel || !status) return;
+
+  const options = [`<option value="">Use default hero reel (${mediaName(INDEX_DEFAULT_HERO_REEL) || "Web Reel-1.mov"})</option>`]
+    .concat(availableVideos.map(v => `<option value="${v.url}">${v.name}</option>`));
+  sel.innerHTML = options.join("");
+  sel.value = heroReelDraft || "";
+
+  const liveHero = heroReelSaved || INDEX_DEFAULT_HERO_REEL;
+  const pending = heroReelDraft !== heroReelSaved;
+  const liveLabel = mediaName(liveHero) || "(none)";
+  const pendingLabel = mediaName(heroReelDraft || INDEX_DEFAULT_HERO_REEL) || "(none)";
+  status.innerHTML = pending
+    ? `Live hero reel: <strong>${liveLabel}</strong><br/>Pending change: <strong>${pendingLabel}</strong> (not saved yet)`
+    : `Live hero reel: <strong>${liveLabel}</strong>`;
+}
+
+function setHeroReelDraft(value) {
+  heroReelDraft = value || "";
+  renderHeroReelPanel();
+}
+
+async function uploadHeroReel() {
+  const input = document.getElementById("heroFile");
+  if (!input || !input.files || !input.files.length) return;
+  const formData = new FormData();
+  formData.append("file", input.files[0]);
+  try {
+    toast("Uploading hero reel...", "ok");
+    const r = await fetch(`${API}/portfolio-upload/` + secret, { method: "POST", body: formData });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || "Upload failed");
+    heroReelDraft = d.url;
+    renderHeroReelPanel();
+    toast("Hero reel uploaded ✓", "ok");
+  } catch (e) {
+    toast("Error: " + e.message, "err");
+  } finally {
+    input.value = "";
+  }
+}
+
+async function saveHeroReelOverride() {
+  try {
+    await saveSetting({ hero_reel_url: heroReelDraft || "" });
+    heroReelSaved = settings.hero_reel_url || "";
+    heroReelDraft = heroReelSaved;
+    renderHeroReelPanel();
+    toast("Hero reel override saved ✓", "ok");
+  } catch (e) {
+    toast("Error: " + e.message, "err");
+  }
+}
+
+async function clearHeroReelOverride() {
+  heroReelDraft = "";
+  try {
+    await saveSetting({ hero_reel_url: "" });
+    heroReelSaved = "";
+    renderHeroReelPanel();
+    toast("Hero reel override cleared ✓", "ok");
+  } catch (e) {
+    toast("Error: " + e.message, "err");
+  }
+}
 
 async function loadPortfolio() {
   try {
     const r = await fetch(`${API}/portfolio`);
-    portfolio = await r.json();
+    const raw = await r.json();
     await loadAvailableVideos();
+    portfolio = mergePortfolioWithIndexMap(raw);
+    heroReelSaved = settings.hero_reel_url || "";
+    heroReelDraft = heroReelSaved;
+    renderHeroReelPanel();
     renderPortfolioList();
   } catch(e) { console.error(e); }
 }

@@ -1480,7 +1480,7 @@
                   </div>
                   <div>
                     <p style={{margin:0,color:"rgba(255,255,255,.4)",fontSize:12,letterSpacing:".05em",marginBottom:4}}>🕐 HOURS</p>
-                    <p style={{margin:0}}>Mon - Fri: 9AM - 6PM<br/>Sat - Sun: By appointment</p>
+                    <p style={{margin:0}}>Mon - Fri: 8AM - 12AM<br/>Sat - Sun: 10AM-2AM</p>
                   </div>
                 </div>
               </div>
@@ -1518,6 +1518,7 @@
       const [done,     setDone]       = useState(false);
       const [portfolioItems, setPortfolioItems] = useState(VIDEOS.work);
       const [cycWallItems, setCycWallItems] = useState(VIDEOS.studio);
+      const [heroReelSrc, setHeroReelSrc] = useState(VIDEOS.showreel);
 
       useEffect(() => {
         const fn = () => setScrolled(window.scrollY > 60);
@@ -1554,6 +1555,17 @@
         });
 
         (async () => {
+          try {
+            const sr = await fetch(`${API_BASE}/settings`);
+            if (sr.ok) {
+              const sData = await sr.json();
+              const heroOverride = mediaUrl(cleanText(sData.hero_reel_url || ""));
+              if (!cancelled && heroOverride) {
+                setHeroReelSrc(heroOverride);
+              }
+            }
+          } catch {}
+
           try {
             const pr = await fetch(`${API_BASE}/portfolio`);
             if (pr.ok) {
@@ -1638,8 +1650,8 @@
           </div>
 
           <section id="hero" style={{minHeight:"100vh",padding:0,position:"relative",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",background:"#0D0D0D"}}>
-            {VIDEOS.showreel
-              ? <HeroVideo src={VIDEOS.showreel}/>
+            {heroReelSrc
+              ? <HeroVideo src={heroReelSrc}/>
               : <div style={{position:"absolute",inset:0,background:"linear-gradient(145deg,#0D0D0D 0%,#1c0a2e 55%,#0d0808 100%)"}}/>
             }
             {[
