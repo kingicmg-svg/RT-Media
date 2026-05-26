@@ -647,8 +647,23 @@ function showPage(name, btn) {
   if (name === "addons")  fillAddonFields();
   if (name === "services") fillServiceToggles();
   if (name === "studio")  fillStudioFields();
-  if (name === "security") loadLoginHistory();
+  if (name === "security") loadSecurityPanel();
   if (name === "portfolio") { loadPortfolio(); loadCycWall(); }
+}
+
+function setTwoFaUi(enabled) {
+  const status = document.getElementById("twoFaStatus");
+  const toggleBtn = document.getElementById("twoFaToggle");
+  if (!status || !toggleBtn) return;
+  const isEnabled = Boolean(enabled);
+  status.textContent = isEnabled ? "Enabled" : "Disabled";
+  status.style.color = isEnabled ? "#FF7835" : "#22c55e";
+  toggleBtn.textContent = isEnabled ? "DISABLE 2FA" : "ENABLE 2FA";
+  toggleBtn.dataset.enabled = isEnabled ? "true" : "false";
+}
+
+async function loadSecurityPanel() {
+  await loadLoginHistory();
 }
 
 function toggleMobMenu() {
@@ -754,13 +769,33 @@ async function changePassword() {
 }
 
 async function toggleTwoFA() {
-  toast("2FA changes coming soon","info");
+  const toggleBtn = document.getElementById("twoFaToggle");
+  const currentlyEnabled = (toggleBtn?.dataset.enabled || "true") === "true";
+  const nextEnabled = !currentlyEnabled;
+  try {
+    const r = await fetch(`${API}/toggle-2fa`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionToken: secret, enabled: nextEnabled })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || "Failed to update 2FA");
+    setTwoFaUi(Boolean(d.user?.twofa_enabled));
+    toast(`2FA ${d.user?.twofa_enabled ? "enabled" : "disabled"} ✓`, "ok");
+  } catch (e) {
+    toast("Error: " + e.message, "err");
+  }
 }
 
 async function loadLoginHistory() {
   try {
-    const r = await fetch(`${API}/security-info?secret=${ADMIN_SECRET}`);
+    const r = await fetch(`${API}/security-info?secret=${encodeURIComponent(secret)}`);
     const d = await r.json();
+    if (!d.ok) {
+      document.getElementById("loginHistory").innerHTML = '<div style="color:#666">Unable to load activity</div>';
+      return;
+    }
+    setTwoFaUi(Boolean(d.users?.twofa_enabled));
     if (!d.history) return;
     const html = d.history.length ? d.history.map(h => `
       <div style="padding:10px;border-bottom:1px solid #1e1e1e;font-size:12px;color:#aaa">

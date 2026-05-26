@@ -62,6 +62,21 @@ function receiptUrl(conf) {
   return `${em.BASE_URL}/receipt.html?conf=${conf}`;
 }
 
+async function isSessionTokenValid(sessionToken) {
+  if (!sessionToken) return false;
+  const { rows } = await pool.query(
+    "SELECT 1 FROM login_sessions WHERE session_token=$1 AND expires_at > NOW() LIMIT 1",
+    [sessionToken]
+  );
+  return rows.length > 0;
+}
+
+async function isAdminAuthorized(secretOrToken) {
+  if (!secretOrToken) return false;
+  if (secretOrToken === ADMIN_SECRET) return true;
+  return isSessionTokenValid(secretOrToken);
+}
+
 // ── POST /booking  (CYC Wall) ─────────────────────────────────────────────────
 app.post("/booking", async (req, res) => {
   try {
@@ -132,7 +147,7 @@ app.post("/production", async (req, res) => {
 app.post("/confirm", async (req, res) => {
   try {
     const { conf, secret } = req.body;
-    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
     await pool.query(
       "UPDATE bookings SET status='confirmed', updated_at=NOW() WHERE conf=$1", [conf]
@@ -156,7 +171,7 @@ app.post("/confirm", async (req, res) => {
 app.post("/reschedule", async (req, res) => {
   try {
     const { conf, secret, new_date, new_time } = req.body;
-    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
     const b = (await pool.query("SELECT * FROM bookings WHERE conf=$1",[conf])).rows[0];
 
@@ -189,7 +204,7 @@ app.post("/reschedule", async (req, res) => {
 app.post("/reschedule-confirm", async (req, res) => {
   try {
     const { conf, secret } = req.body;
-    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
     await pool.query(
       "UPDATE bookings SET status='confirmed', updated_at=NOW() WHERE conf=$1", [conf]
@@ -211,7 +226,7 @@ app.post("/reschedule-confirm", async (req, res) => {
 
 // ── GET /bookings  (Admin — list all) ────────────────────────────────────────
 app.get("/bookings", async (req, res) => {
-  if (req.query.secret !== ADMIN_SECRET) return res.status(401).json({ ok: false });
+  if (!(await isAdminAuthorized(req.query.secret))) return res.status(401).json({ ok: false });
   const { rows } = await pool.query(
     "SELECT * FROM bookings ORDER BY created_at DESC"
   );
@@ -240,7 +255,7 @@ app.get("/settings", async (req, res) => {
 // ── PUT /settings  (Admin — update one or many keys) ─────────────────────────
 app.put("/settings", async (req, res) => {
   const { secret, ...updates } = req.body;
-  if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: "Unauthorized" });
   try {
     for (const [key, value] of Object.entries(updates)) {
       const val = typeof value === "string" ? value : JSON.stringify(value);
@@ -258,7 +273,7 @@ app.put("/settings", async (req, res) => {
 
 // ── DELETE /booking/:conf  (Admin — cancel) ───────────────────────────────────
 app.delete("/booking/:conf", async (req, res) => {
-  if (req.query.secret !== ADMIN_SECRET) return res.status(401).json({ ok: false });
+  if (!(await isAdminAuthorized(req.query.secret))) return res.status(401).json({ ok: false });
   await pool.query("UPDATE bookings SET status='cancelled', updated_at=NOW() WHERE conf=$1", [req.params.conf]);
   res.json({ ok: true });
 });
@@ -377,8 +392,8 @@ app.post("/logout", async (req, res) => {
 });
 
 // ── POST /portfolio-upload  (Upload media for portfolio/cyc wall) ─────────────
-app.post('/portfolio-upload/:secret', upload.single('file'), (req, res) => {
-  if (req.params.secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+app.post('/portfolio-upload/:secret', upload.single('file'), async (req, res) => {
+  if (!(await isAdminAuthorized(req.params.secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded' });
   res.json({ 
     ok: true, 
@@ -416,7 +431,7 @@ app.get('/portfolio', async (req, res) => {
 // ── PUT /portfolio  (Update portfolio items) ────────────────────────────────────
 app.put('/portfolio', async (req, res) => {
   const { secret, items } = req.body;
-  if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   try {
     await pool.query(
       "INSERT INTO settings (key,value) VALUES($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2",
@@ -444,7 +459,7 @@ app.get('/cyc-wall', async (req, res) => {
 // ── PUT /cyc-wall  (Update CYC wall gallery) ───────────────────────────────────
 app.put('/cyc-wall', async (req, res) => {
   const { secret, items } = req.body;
-  if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   try {
     await pool.query(
       "INSERT INTO settings (key,value) VALUES($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2",
@@ -461,11 +476,37 @@ app.put('/cyc-wall', async (req, res) => {
 app.get("/security-info", async (req, res) => {
   try {
     const { secret } = req.query;
-    if (secret !== ADMIN_SECRET) return res.status(401).json({ ok: false });
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false });
     const { rows: users } = await pool.query("SELECT id, username, email, twofa_enabled, last_login FROM admin_users");
     const { rows: history } = await pool.query("SELECT * FROM login_history ORDER BY created_at DESC LIMIT 20");
-    res.json({ users: users[0], history });
+    res.json({ ok: true, users: users[0], history });
   } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /toggle-2fa  (Enable/disable admin 2FA) ─────────────────────────────
+app.post("/toggle-2fa", async (req, res) => {
+  try {
+    const { sessionToken, enabled } = req.body;
+    const { rows: sessions } = await pool.query(
+      "SELECT admin_id FROM login_sessions WHERE session_token=$1 AND expires_at > NOW()",
+      [sessionToken]
+    );
+    if (!sessions.length) return res.status(401).json({ ok: false, error: "Unauthorized" });
+
+    await pool.query(
+      "UPDATE admin_users SET twofa_enabled=$1, updated_at=NOW() WHERE id=$2",
+      [Boolean(enabled), sessions[0].admin_id]
+    );
+
+    const { rows: users } = await pool.query(
+      "SELECT id, username, email, twofa_enabled, last_login FROM admin_users WHERE id=$1",
+      [sessions[0].admin_id]
+    );
+    res.json({ ok: true, user: users[0] || null });
+  } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });
   }
