@@ -131,6 +131,11 @@
       return url;
     }
 
+    function cleanText(value) {
+      if (typeof value !== "string") return "";
+      return value.trim();
+    }
+
     /* ── Global CSS ─────────────────────────────────────────────────────────── */
     const CSS = `
       @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -609,7 +614,7 @@
                     height={310} src={item.src} poster={item.poster}
                   />
                   <div style={{marginTop:20,paddingLeft:2}}>
-                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{item.title}</h3>
+                    <h3 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",color:"#0D0D0D"}}>{cleanText(item.title) || "Untitled Project"}</h3>
                   </div>
                 </div>
               ))}
@@ -1407,8 +1412,8 @@
           id: p.id || i + 1,
           src: mediaUrl(p.src || ""),
           poster: mediaUrl(p.poster || p.thumbnail || ""),
-          title: p.title || VIDEOS.work[i]?.title || `Project ${i + 1}`,
-          cat: p.cat || p.category || "Music Video",
+          title: cleanText(p.title) || VIDEOS.work[i]?.title || `Project ${i + 1}`,
+          cat: cleanText(p.cat) || cleanText(p.category) || "Music Video",
           order: Number.isFinite(Number(p.order)) ? Number(p.order) : i,
         });
 
@@ -1431,8 +1436,8 @@
                     id: fromAdmin.id || fallback.id,
                     src: fromAdmin.src || fallback.src,
                     poster: fromAdmin.poster || fallback.poster,
-                    title: fromAdmin.title || fallback.title,
-                    cat: fromAdmin.cat || fallback.cat,
+                    title: cleanText(fromAdmin.title) || fallback.title || `Project ${i + 1}`,
+                    cat: cleanText(fromAdmin.cat) || fallback.cat || "Music Video",
                   };
                 });
                 setPortfolioItems(merged);
