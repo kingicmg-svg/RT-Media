@@ -828,15 +828,28 @@ async function saveServices() {
 }
 
 /* ── Add-ons ───────────────────────────────────────────────────── */
+const DEFAULT_CYC_ADDON_RATES = {
+  fog: 60,
+  cam: 180,
+  light: 120,
+  cstand: 25,
+  sand: 10,
+};
+
 function fillAddonFields() {
   const cyc  = Array.isArray(settings.cyc_addons)  ? settings.cyc_addons  : [];
   const crew = Array.isArray(settings.crew_addons) ? settings.crew_addons : [];
-  document.getElementById("cycAddonList").innerHTML  = cyc.map((a,i)  => cycAddonRow(a,i)).join("");
+  settings.cyc_addons = cyc.map(a => ({
+    ...a,
+    rate: a.rate ?? DEFAULT_CYC_ADDON_RATES[a.id] ?? 0,
+  }));
+  document.getElementById("cycAddonList").innerHTML  = settings.cyc_addons.map((a,i)  => cycAddonRow(a,i)).join("");
   document.getElementById("crewList").innerHTML       = crew.map((a,i) => crewRow(a,i)).join("");
 }
 function cycAddonRow(a, i) {
   return `<div class="addon-row" id="cad_${i}">
     <input type="text" value="${a.label||""}" placeholder="Label" oninput="settings.cyc_addons[${i}].label=this.value"/>
+    <input type="number" value="${a.rate ?? 0}" placeholder="Rate" style="max-width:110px" oninput="settings.cyc_addons[${i}].rate=Number(this.value)||0"/>
     <label class="toggle" title="Enabled"><input type="checkbox" ${a.enabled?"checked":""} onchange="settings.cyc_addons[${i}].enabled=this.checked"/>
     <span class="slider"></span></label>
     <button class="addon-del" onclick="removeCycAddon(${i})">✕</button>
@@ -851,7 +864,7 @@ function crewRow(a, i) {
     <button class="addon-del" onclick="removeCrewAddon(${i})">✕</button>
   </div>`;
 }
-function addCycAddon()  { if(!settings.cyc_addons) settings.cyc_addons=[]; settings.cyc_addons.push({id:"new_"+Date.now(),label:"",enabled:true}); fillAddonFields(); }
+function addCycAddon()  { if(!settings.cyc_addons) settings.cyc_addons=[]; settings.cyc_addons.push({id:"new_"+Date.now(),label:"",rate:0,enabled:true}); fillAddonFields(); }
 function addCrewAddon() { if(!settings.crew_addons) settings.crew_addons=[]; settings.crew_addons.push({label:"",rate:"Rate on quote",enabled:true}); fillAddonFields(); }
 function removeCycAddon(i)  { settings.cyc_addons.splice(i,1);  fillAddonFields(); }
 function removeCrewAddon(i) { settings.crew_addons.splice(i,1); fillAddonFields(); }

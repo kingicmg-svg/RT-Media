@@ -117,11 +117,11 @@
       { label:"Hair & Makeup",         rate:"Rate on quote" },
     ];
     const CYC_ADDONS = [
-      { id:"fog",    label:"Smoke / Fog Machine",     desc:"Atmospheric haze & fog effects" },
-      { id:"cam",    label:"Camera & Run-Gun Kit",    desc:"Full run-and-gun kit — camera, lenses, monitor, follow focus, shoulder rig & batteries" },
-      { id:"light",  label:"Additional Lighting",     desc:"Extra LED panels, gels & diffusion" },
-      { id:"cstand", label:"Extra C-Stands",          desc:"Additional C-stands for flags & practicals" },
-      { id:"sand",   label:"Sandbags",                desc:"Extra ballast for stands & rigs" },
+      { id:"fog",    label:"Smoke / Fog Machine",     desc:"Atmospheric haze & fog effects", rate:60 },
+      { id:"cam",    label:"Camera & Run-Gun Kit",    desc:"Full run-and-gun kit — camera, lenses, monitor, follow focus, shoulder rig & batteries", rate:180 },
+      { id:"light",  label:"Additional Lighting",     desc:"Extra LED panels, gels & diffusion", rate:120 },
+      { id:"cstand", label:"Extra C-Stands",          desc:"Additional C-stands for flags & practicals", rate:25 },
+      { id:"sand",   label:"Sandbags",                desc:"Extra ballast for stands & rigs", rate:10 },
     ];
 
     function mediaUrl(url) {
@@ -163,6 +163,20 @@
     function numberOr(value, fallback) {
       const n = Number(value);
       return Number.isFinite(n) ? n : fallback;
+    }
+
+    function parseAddonRate(value, fallback = 0) {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
+        const cleaned = value.replace(/[^0-9.\-]/g, "");
+        const n = Number(cleaned);
+        if (Number.isFinite(n)) return n;
+      }
+      return fallback;
+    }
+
+    function money(v) {
+      return `$${numberOr(v, 0).toFixed(2)}`;
     }
 
     const AUTO_THUMB_TIME_SECONDS = 70;
@@ -882,12 +896,21 @@
         try {
           const dateStr = selDate ? selDate.toLocaleDateString("en-CA") : "";
           const addOnList = selectedAddons.length
-            ? selectedAddons.map(id => cycAddonOptions.find(a=>a.id===id)?.label).filter(Boolean).join(", ")
+            ? selectedAddons.map(id => {
+                const addon = cycAddonOptions.find(a=>a.id===id);
+                if (!addon) return "";
+                const addonRate = parseAddonRate(addon.rate, 0);
+                return addonRate > 0 ? `${addon.label} (${money(addonRate)})` : addon.label;
+              }).filter(Boolean).join(", ")
             : "None";
           const hourlyRate = numberOr(bookingConfig.hourlyRate, 100);
           const cleaningFee = numberOr(bookingConfig.cleaningFee, 10);
           const hstRate = numberOr(bookingConfig.hstRate, 0.13);
-          const studio_total = hrs * hourlyRate + cleaningFee;
+          const addonTotal = selectedAddons.reduce((sum, id) => {
+            const addon = cycAddonOptions.find(a => a.id === id);
+            return sum + parseAddonRate(addon?.rate, 0);
+          }, 0);
+          const studio_total = hrs * hourlyRate + cleaningFee + addonTotal;
           const hst          = Math.round(studio_total * hstRate * 100) / 100;
           const res = await fetch(`${API_BASE}/booking`, {
             method:"POST",
@@ -1051,7 +1074,9 @@
       const durObj  = durationOptions.find(d => d.key === dur) || durationOptions[0];
       const hrs     = dur === "custom" ? customHrs : durObj.hrs;
       const studioTotal  = hrs * hourlyRate;
-      const subtotal     = studioTotal + cleaningFee;
+      const selectedAddonItems = cycAddonOptions.filter(a => cycAddons.includes(a.id));
+      const addonTotal = selectedAddonItems.reduce((sum, a) => sum + parseAddonRate(a.rate, 0), 0);
+      const subtotal     = studioTotal + cleaningFee + addonTotal;
       const hst          = Math.round(subtotal * HST_RATE * 100) / 100;
       const grandTotal   = Math.round((subtotal + hst) * 100) / 100;
       const deposit      = 100;
@@ -1117,7 +1142,7 @@
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:".04em",color:"#0D0D0D",marginBottom:4}}>{d.label}</div>
                 <div style={{fontFamily:"'DM Sans'",fontSize:11,color:"#888",marginBottom:10}}>{d.sub}</div>
                 {d.key === "custom"
-                  ? <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:".04em",...gradTxt}}>${hourlyRate}/hr</div>
+                  ? <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:".04em",...gradTxt}}>{money(hourlyRate)}/hr</div>
                   : <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".04em",...gradTxt}}>{d.price}</div>
                 }
               </button>
@@ -1137,7 +1162,7 @@
           )}
           <div style={{background:"#F7F6F4",borderRadius:12,padding:"12px 18px",marginBottom:36}}>
             <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#555",lineHeight:1.6}}>
-              <strong style={{color:"#0D0D0D"}}>Included:</strong> Infinity wall + full lighting setup · ${hourlyRate}/hr · {minHours}-hr minimum
+              <strong style={{color:"#0D0D0D"}}>Included:</strong> Infinity wall + full lighting setup · {money(hourlyRate)}/hr · {minHours}-hr minimum
             </p>
           </div>
 
@@ -1182,6 +1207,14 @@
           {selDate && (
             <div style={{marginBottom:40}}>
               <p style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".06em",marginBottom:16,color:"#0D0D0D"}}>SELECT START TIME</p>
+              <p style={{fontFamily:"'DM Sans'",fontSize:12,color:"#888",marginBottom:12}}>
+                Operating hours: {studioOpen}:00 - {studioClose}:00 (start times adjust by duration)
+              </p>
+              {timeSlots.length === 0 && (
+                <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#D91E8C",marginBottom:12}}>
+                  No available start times for this duration within current operating hours.
+                </p>
+              )}
               <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
                 {timeSlots.map(t=>(
                   <button key={t} className={`cp${selTime===t?" on":""}`} onClick={()=>setSelTime(t)}>
@@ -1207,6 +1240,7 @@
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:44}}>
             {cycAddonOptions.map(a=>{
               const on = cycAddons.includes(a.id);
+              const addonRate = parseAddonRate(a.rate, 0);
               return (
                 <button key={a.id} onClick={()=>toggleCycAddon(a.id)} style={{
                   display:"flex",alignItems:"center",gap:16,
@@ -1226,6 +1260,7 @@
                     <div style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:600,color:on?"#FF3D6B":"#0D0D0D",marginBottom:2}}>{a.label}</div>
                     <div style={{fontFamily:"'DM Sans'",fontSize:12,color:"#888",fontWeight:300}}>{a.desc}</div>
                   </div>
+                  <span style={{marginLeft:"auto",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:".04em",...gradTxt}}>{addonRate > 0 ? money(addonRate) : "Included"}</span>
                 </button>
               );
             })}
@@ -1258,13 +1293,19 @@
             )}
             {/* Price lines */}
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-              <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Studio time ({hrs}h × ${hourlyRate}/hr)</span>
+              <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Studio time ({hrs}h × {money(hourlyRate)}/hr)</span>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>${studioTotal.toFixed(2)}</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Cleaning fee</span>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>${cleaningFee.toFixed(2)}</span>
             </div>
+            {addonTotal > 0 && (
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#555"}}>Selected add-ons</span>
+                <span style={{fontFamily:"'DM Sans'",fontSize:14,fontWeight:500,color:"#0D0D0D"}}>{money(addonTotal)}</span>
+              </div>
+            )}
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:18,paddingBottom:18,borderBottom:"1px solid #e0e0e0"}}>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#888"}}>HST ({Math.round(HST_RATE * 100)}%)</span>
               <span style={{fontFamily:"'DM Sans'",fontSize:14,color:"#888"}}>${hst.toFixed(2)}</span>
@@ -1527,8 +1568,8 @@
                   © {new Date().getFullYear()} Round Table Media. All rights reserved.
                 </p>
                 <div style={{display:"flex",gap:28,fontFamily:"'DM Sans'",fontSize:12}}>
-                  <a href="#" style={{color:"rgba(255,255,255,.3)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.3)"}>Privacy Policy</a>
-                  <a href="#" style={{color:"rgba(255,255,255,.3)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.3)"}>Terms of Service</a>
+                  <a href="./privacy.html" style={{color:"rgba(255,255,255,.3)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.3)"}>Privacy Policy</a>
+                  <a href="./terms.html" style={{color:"rgba(255,255,255,.3)",textDecoration:"none",transition:"color .2s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.3)"}>Terms of Service</a>
                 </div>
               </div>
             </div>
@@ -1714,6 +1755,7 @@
           id: cleanText(a.id) || `addon_${i}`,
           label: cleanText(a.label),
           desc: cleanText(a.desc),
+          rate: parseAddonRate(a.rate, CYC_ADDONS.find(x => x.id === (cleanText(a.id) || ""))?.rate || 0),
         }));
 
       const crewOptions = (Array.isArray(siteSettings.crew_addons) ? siteSettings.crew_addons : [])
