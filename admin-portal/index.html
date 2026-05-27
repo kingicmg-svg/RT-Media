@@ -474,6 +474,52 @@ let settings = {};
 let bFilter  = "all";
 const AUTO_THUMB_TIME_SECONDS = 70;
 const thumbCache = new Map();
+const DEFAULT_SERVICES = [
+  { id: "studio_booking", label: "Studio Booking", enabled: true },
+  { id: "cyc_wall", label: "CYC WALL", enabled: true },
+  { id: "production", label: "PRODUCTION", enabled: true },
+];
+const DEFAULT_CYC_ADDON_RATES = {
+  fog: 60,
+  cam: 180,
+  light: 120,
+  cstand: 25,
+  sand: 10,
+};
+const DEFAULT_CYC_ADDONS = [
+  { id: "fog", label: "Smoke / Fog Machine", rate: 60, enabled: true },
+  { id: "cam", label: "Camera & Run-Gun Kit", rate: 180, enabled: true },
+  { id: "light", label: "Additional Lighting", rate: 120, enabled: true },
+  { id: "cstand", label: "Extra C-Stands", rate: 25, enabled: true },
+  { id: "sand", label: "Sandbags", rate: 10, enabled: true },
+];
+const DEFAULT_CREW_ADDONS = [
+  { label: "Director", rate: "Rate on quote", enabled: true },
+  { label: "Producer", rate: "Rate on quote", enabled: true },
+  { label: "Cinematographer", rate: "Rate on quote", enabled: true },
+  { label: "Gaffer", rate: "Rate on quote", enabled: true },
+  { label: "Hair & Makeup", rate: "Rate on quote", enabled: true },
+];
+
+function hydrateSettingsForPortal(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const next = { ...src };
+  next.services = Array.isArray(src.services) && src.services.length
+    ? src.services
+    : DEFAULT_SERVICES.map(s => ({ ...s }));
+  next.cyc_addons = Array.isArray(src.cyc_addons) && src.cyc_addons.length
+    ? src.cyc_addons.map(a => ({
+        ...a,
+        rate: Number.isFinite(Number(a?.rate))
+          ? Number(a.rate)
+          : (DEFAULT_CYC_ADDON_RATES[a?.id] ?? 0),
+      }))
+    : DEFAULT_CYC_ADDONS.map(a => ({ ...a }));
+  next.crew_addons = Array.isArray(src.crew_addons) && src.crew_addons.length
+    ? src.crew_addons
+    : DEFAULT_CREW_ADDONS.map(a => ({ ...a }));
+  return next;
+}
 
 function toAbsoluteMediaUrl(url) {
   if (!url) return "";
@@ -678,7 +724,7 @@ function closeMobMenu() {
 /* ── Settings ──────────────────────────────────────────────────── */
 async function loadSettings() {
   const r = await fetch(`${API}/settings`);
-  settings = await r.json();
+  settings = hydrateSettingsForPortal(await r.json());
 }
 
 async function saveSetting(updates) {
@@ -828,14 +874,6 @@ async function saveServices() {
 }
 
 /* ── Add-ons ───────────────────────────────────────────────────── */
-const DEFAULT_CYC_ADDON_RATES = {
-  fog: 60,
-  cam: 180,
-  light: 120,
-  cstand: 25,
-  sand: 10,
-};
-
 function fillAddonFields() {
   const cyc  = Array.isArray(settings.cyc_addons)  ? settings.cyc_addons  : [];
   const crew = Array.isArray(settings.crew_addons) ? settings.crew_addons : [];
