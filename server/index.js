@@ -12,9 +12,68 @@ const PORT = process.env.PORT || 3001;
 const ADMIN_SECRET = "rt_media26";
 const DEPLOY_TIME = new Date().toISOString();
 const VIDEOS_DIR = "/mnt/videos";
+const RATE_LIMITS = new Map();
+const TRUSTED_ORIGINS = new Set([
+  "https://rtm-api-abop.onrender.com",
+  "https://roundtablemedia.ca",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+]);
 
-app.use(cors());
-app.use(express.json());
+app.disable("x-powered-by");
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Cache-Control", "no-store");
+  const origin = req.headers.origin;
+  if (!origin || TRUSTED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://rtm-api-abop.onrender.com https://www.google-analytics.com https://www.googletagmanager.com;"
+  );
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: "32kb" }));
+
+function rateLimit(key, limit, windowMs) {
+  return (req, res, next) => {
+    const now = Date.now();
+    const routeKey = `${key}:${req.ip || "unknown"}`;
+    const bucket = RATE_LIMITS.get(routeKey) || { count: 0, resetAt: now + windowMs };
+    if (now > bucket.resetAt) {
+      bucket.count = 0;
+      bucket.resetAt = now + windowMs;
+    }
+    bucket.count += 1;
+    RATE_LIMITS.set(routeKey, bucket);
+    if (bucket.count > limit) {
+      return res.status(429).json({ ok: false, error: "Too many requests" });
+    }
+    next();
+  };
+}
 
 // Create videos directory if it doesn't exist
 if (!fs.existsSync(VIDEOS_DIR)) {
@@ -46,7 +105,7 @@ app.use('/videos', express.static('/mnt/videos', {
 }));
 
 // Temporary upload endpoint for videos (secret token required)
-app.post('/upload-videos/:token', upload.array('files'), (req, res) => {
+app.post('/upload-videos/:token', rateLimit('upload-videos', 6, 15 * 60 * 1000), upload.array('files'), (req, res) => {
   if (req.params.token !== ADMIN_SECRET) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   res.json({ ok: true, uploaded: req.files?.length || 0 });
 });
@@ -98,6 +157,21 @@ function formatChatHours(value, fallback = 0) {
   return `${display}:00 ${ampm}`;
 }
 
+function formatChatMoney(value, fallback = 0) {
+  const amount = Number.isFinite(Number(value)) ? Number(value) : fallback;
+  return `$${amount.toFixed(2)}`;
+}
+
+function summarizeEnabledLabels(items, fallbackLabels = []) {
+  const labels = Array.isArray(items)
+    ? items
+        .filter(item => item && item.enabled !== false)
+        .map(item => normalizeChatText(item.label || item.name || item.title))
+        .filter(Boolean)
+    : [];
+  return labels.length ? labels : fallbackLabels;
+}
+
 async function getSettingsMap() {
   const { rows } = await pool.query("SELECT key, value FROM settings");
   const out = {};
@@ -113,9 +187,16 @@ function buildChatReply(message, settings) {
   const weekdayClose = formatChatHours(settings.weekday_close ?? settings.studio_close, 24);
   const weekendOpen = formatChatHours(settings.weekend_open ?? settings.studio_open, 10);
   const weekendClose = formatChatHours(settings.weekend_close ?? settings.studio_close, 26);
+  const hourlyRate = Number.isFinite(Number(settings.hourly_rate)) ? Number(settings.hourly_rate) : 100;
+  const minHours = Math.max(1, Math.round(Number(settings.min_hours ?? 2)) || 2);
+  const cleaningFee = formatChatMoney(settings.cleaning_fee, 10);
+  const hstRate = Number.isFinite(Number(settings.hst_rate)) ? Number(settings.hst_rate) : 0.13;
   const studioEmail = normalizeChatText(settings.studio_email) || "rtablemedia@gmail.com";
+  const serviceSummary = summarizeEnabledLabels(settings.services, ["music videos", "commercials", "corporate videos", "CYC wall rentals", "color grading"]);
+  const cycAddonSummary = summarizeEnabledLabels(settings.cyc_addons, []);
+  const crewAddonSummary = summarizeEnabledLabels(settings.crew_addons, []);
 
-  const wantsHuman = /(human|management|manager|person|representative|talk to someone|call me|reply by email|book a call|contact studio)/i.test(text);
+  const wantsHuman = /(human|management|studio management|manager|person|representative|talk to someone|call me|reply by email|book a call|contact studio)/i.test(text);
 
   if (/(hours|open|opening|close|closing|when are you open|schedule)/i.test(text)) {
     return {
@@ -124,16 +205,42 @@ function buildChatReply(message, settings) {
     };
   }
 
-  if (/(book|booking|deposit|hold|payment|pay|pay via|pay by|paypal|apple pay|google pay|etransfer)/i.test(text)) {
+  if (/(pricing|price|rate|rates|cost|quote|how much)/i.test(text)) {
     return {
-      reply: `Bookings can be started from the Book section. The CYC wall uses hourly pricing, add-ons are listed in the quote, and payment holds last 5 minutes while checkout is in progress. If you want, I can pass this to studio management.`,
+      reply: `CYC Wall bookings start at ${formatChatMoney(hourlyRate)}/hr with a ${minHours}-hour minimum. Cleaning fee is ${cleaningFee}, HST is ${Math.round(hstRate * 100)}%, and selected add-ons appear in the quote.`,
+      handoff: false,
+    };
+  }
+
+  if (/(deposit|hold|payment hold|payment|pay|pay via|pay by|paypal|apple pay|google pay|etransfer)/i.test(text)) {
+    return {
+      reply: `To reserve a slot, checkout holds your booking for 5 minutes. The current deposit is ${formatChatMoney(100)}, the cleaning fee is ${cleaningFee}, and HST is ${Math.round(hstRate * 100)}%. If the hold expires, you can restart checkout.`,
+      handoff: false,
+    };
+  }
+
+  if (/(book|booking|reserve|availability|available|date|time)/i.test(text)) {
+    return {
+      reply: "You can start a booking from the Book section by choosing your date, time, add-ons, and payment method. If you want, I can send this to studio management for a custom quote.",
+      handoff: false,
+    };
+  }
+
+  if (/(addon|add-on|add ons|extra|extras|equipment|lights|crew|producer|director|gaffer|makeup|hair)/i.test(text)) {
+    const addOnParts = [];
+    if (cycAddonSummary.length) addOnParts.push(`CYC add-ons: ${cycAddonSummary.join(", ")}`);
+    if (crewAddonSummary.length) addOnParts.push(`crew support: ${crewAddonSummary.join(", ")}`);
+    return {
+      reply: addOnParts.length
+        ? `${addOnParts.join(". ")}. If you want exact pricing for your booking, I can send it to studio management.`
+        : "Add-ons are quoted based on the booking type. If you need exact options, I can send this to studio management.",
       handoff: false,
     };
   }
 
   if (/(services|what do you do|production|music video|commercial|brand|cyc|wall|studio)/i.test(text)) {
     return {
-      reply: "We handle music videos, commercial and brand shoots, full production, and CYC wall rentals. If you want a quote or a custom package, studio management can take it from here.",
+      reply: `We offer ${serviceSummary.join(", ")}. If you want a quote or custom package, studio management can take it from here.`,
       handoff: false,
     };
   }
@@ -160,7 +267,7 @@ function buildChatReply(message, settings) {
   }
 
   return {
-    reply: `I can help with bookings, hours, add-ons, delivery timelines, or studio services. If you want a human follow-up, I can send this straight to studio management.`,
+    reply: `I can help with bookings, hours, pricing, add-ons, studio services, or delivery timelines. If you want a human, I can send your message directly to studio management.`,
     handoff: true,
   };
 }
@@ -199,7 +306,7 @@ async function addChatMessage(threadId, role, message, senderName = null, source
 }
 
 // ── POST /booking  (CYC Wall) ─────────────────────────────────────────────────
-app.post("/booking", async (req, res) => {
+app.post("/booking", rateLimit('booking', 10, 15 * 60 * 1000), async (req, res) => {
   try {
     const {
       name, email, phone,
@@ -242,7 +349,7 @@ app.post("/booking", async (req, res) => {
 });
 
 // ── POST /production  (Production inquiry) ────────────────────────────────────
-app.post("/production", async (req, res) => {
+app.post("/production", rateLimit('production', 10, 15 * 60 * 1000), async (req, res) => {
   try {
     const { name, email, phone, project_type, crew_addons, message } = req.body;
     const conf = confNum();
@@ -378,7 +485,7 @@ app.get("/settings", async (req, res) => {
 });
 
 // ── PUT /settings  (Admin — update one or many keys) ─────────────────────────
-app.put("/settings", async (req, res) => {
+app.put("/settings", rateLimit("settings-put", 30, 15 * 60 * 1000), async (req, res) => {
   const { secret, ...updates } = req.body;
   if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: "Unauthorized" });
   try {
@@ -397,7 +504,7 @@ app.put("/settings", async (req, res) => {
 });
 
 // ── CHAT ────────────────────────────────────────────────────────────────────
-app.post("/chat/message", async (req, res) => {
+app.post("/chat/message", rateLimit("chat-message", 20, 5 * 60 * 1000), async (req, res) => {
   try {
     const visitorId = normalizeChatText(req.body.visitor_id) || Math.random().toString(36).slice(2);
     const name = normalizeChatText(req.body.name);
@@ -438,7 +545,7 @@ app.post("/chat/message", async (req, res) => {
   }
 });
 
-app.get("/chat/threads", async (req, res) => {
+app.get("/chat/threads", rateLimit("chat-threads", 60, 60 * 1000), async (req, res) => {
   try {
     if (!(await isAdminAuthorized(req.query.secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const { rows } = await pool.query(`
@@ -464,7 +571,7 @@ app.get("/chat/threads", async (req, res) => {
   }
 });
 
-app.get("/chat/messages/:threadId", async (req, res) => {
+app.get("/chat/messages/:threadId", rateLimit("chat-messages", 120, 60 * 1000), async (req, res) => {
   try {
     if (!(await isAdminAuthorized(req.query.secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const { rows } = await pool.query(
@@ -478,7 +585,7 @@ app.get("/chat/messages/:threadId", async (req, res) => {
   }
 });
 
-app.post("/chat/reply", async (req, res) => {
+app.post("/chat/reply", rateLimit("chat-reply", 60, 60 * 1000), async (req, res) => {
   try {
     const { secret, thread_id, message } = req.body;
     if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -494,7 +601,7 @@ app.post("/chat/reply", async (req, res) => {
   }
 });
 
-app.post("/chat/mark-read", async (req, res) => {
+app.post("/chat/mark-read", rateLimit("chat-mark-read", 120, 60 * 1000), async (req, res) => {
   try {
     const { secret, thread_id } = req.body;
     if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -509,7 +616,7 @@ app.post("/chat/mark-read", async (req, res) => {
   }
 });
 
-app.post("/chat/close", async (req, res) => {
+app.post("/chat/close", rateLimit("chat-close", 30, 60 * 1000), async (req, res) => {
   try {
     const { secret, thread_id } = req.body;
     if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -529,7 +636,7 @@ app.delete("/booking/:conf", async (req, res) => {
 });
 
 // ── POST /login-password  (Admin login with password) ──────────────────────────
-app.post("/login-password", async (req, res) => {
+app.post("/login-password", rateLimit('login-password', 8, 15 * 60 * 1000), async (req, res) => {
   try {
     const { password } = req.body;
     let { rows } = await pool.query("SELECT id, password, email, twofa_enabled FROM admin_users WHERE username='admin'");
@@ -575,7 +682,7 @@ app.post("/login-password", async (req, res) => {
 });
 
 // ── POST /verify-2fa  (Verify 2FA code) ────────────────────────────────────────
-app.post("/verify-2fa", async (req, res) => {
+app.post("/verify-2fa", rateLimit('verify-2fa', 8, 15 * 60 * 1000), async (req, res) => {
   try {
     const { sessionId, code } = req.body;
     const { rows } = await pool.query(
@@ -600,7 +707,7 @@ app.post("/verify-2fa", async (req, res) => {
 });
 
 // ── POST /change-password  (Change admin password) ────────────────────────────
-app.post("/change-password", async (req, res) => {
+app.post("/change-password", rateLimit('change-password', 5, 15 * 60 * 1000), async (req, res) => {
   try {
     const { sessionToken, oldPassword, newPassword } = req.body;
     const { rows: sessions } = await pool.query(
@@ -627,7 +734,7 @@ app.post("/change-password", async (req, res) => {
 });
 
 // ── POST /logout  (Admin logout) ────────────────────────────────────────────────
-app.post("/logout", async (req, res) => {
+app.post("/logout", rateLimit('logout', 20, 15 * 60 * 1000), async (req, res) => {
   try {
     const { sessionToken } = req.body;
     await pool.query(
@@ -642,7 +749,7 @@ app.post("/logout", async (req, res) => {
 });
 
 // ── POST /portfolio-upload  (Upload media for portfolio/cyc wall) ─────────────
-app.post('/portfolio-upload/:secret', upload.single('file'), async (req, res) => {
+app.post('/portfolio-upload/:secret', rateLimit('portfolio-upload', 6, 15 * 60 * 1000), upload.single('file'), async (req, res) => {
   if (!(await isAdminAuthorized(req.params.secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded' });
   res.json({ 

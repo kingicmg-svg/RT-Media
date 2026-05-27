@@ -1553,7 +1553,7 @@
     function ChatWidget({ studioInfo }) {
       const [open, setOpen] = useState(false);
       const [messages, setMessages] = useState([
-        { role: "bot", text: "Hi, I can help with bookings, hours, add-ons, services, or pass your question to studio management." },
+        { role: "bot", text: "Hi, I can help with bookings, hours, pricing, add-ons, studio services, or delivery timelines. If you want a human, I can send your message directly to studio management." },
       ]);
       const [input, setInput] = useState("");
       const [name, setName] = useState(() => localStorage.getItem("rtm_chat_name") || "");

@@ -995,7 +995,7 @@ function sendChatSavedFAQ(kind) {
   const weekendClose = formatHour(settings.weekend_close ?? settings.studio_close ?? 26);
   const snippets = {
     hours: `Studio hours are Mon - Fri: ${weekdayOpen} - ${weekdayClose} and Sat - Sun: ${weekendOpen} - ${weekendClose}.`,
-    booking: "Bookings can be started from the Book section. Payment holds last 5 minutes while checkout is in progress, and the admin inbox can follow up if you need a custom quote.",
+    booking: "To reserve a slot, checkout holds your booking for 5 minutes. The current deposit is $100, and the remaining total includes the cleaning fee and HST. If the hold expires, you can restart checkout.",
   };
   input.value = snippets[kind] || "";
 }
