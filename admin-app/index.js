@@ -15,7 +15,8 @@ function serveAdminPortalPage(req, res) {
   try {
     let html = fs.readFileSync(ADMIN_PORTAL_PATH, "utf8");
     html = html
-      .replaceAll("https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG", "/RT%20MEDIA_animate%203.PNG")
+      .replaceAll("https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG", "/rt-logo.png")
+      .replaceAll("/RT%20MEDIA_animate%203.PNG", "/rt-logo.png")
       .replaceAll("onerror=\"this.style.display='none'\"", "onerror=\"this.onerror=null;this.src='/apple-touch-icon.png'\"")
       .replace("const API    = \"https://rtm-api-abop.onrender.com\";", "const ORIGIN = window.location.origin || \"https://rtm-api-abop.onrender.com\";\nconst API    = ORIGIN;")
       .replace("const SITE   = \"https://rtm-api-abop.onrender.com\";", "const SITE   = ORIGIN;")
