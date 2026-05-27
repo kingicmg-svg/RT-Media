@@ -354,14 +354,24 @@
             <input type="number" id="set_max_hours" placeholder="12"/>
           </div>
           <div class="field">
-            <label>Studio Opens (hour, 24h)</label>
-            <input type="number" id="set_studio_open" placeholder="9"/>
-            <div class="hint">9 = 9:00 AM</div>
+            <label>Mon - Fri Opens (24h)</label>
+            <input type="number" id="set_weekday_open" placeholder="8"/>
+            <div class="hint">8 = 8:00 AM</div>
           </div>
           <div class="field">
-            <label>Studio Closes (hour, 24h)</label>
-            <input type="number" id="set_studio_close" placeholder="22"/>
-            <div class="hint">22 = 10:00 PM</div>
+            <label>Mon - Fri Closes (24h)</label>
+            <input type="number" id="set_weekday_close" placeholder="24"/>
+            <div class="hint">24 = 12:00 AM</div>
+          </div>
+          <div class="field">
+            <label>Sat - Sun Opens (24h)</label>
+            <input type="number" id="set_weekend_open" placeholder="10"/>
+            <div class="hint">10 = 10:00 AM</div>
+          </div>
+          <div class="field">
+            <label>Sat - Sun Closes (24h)</label>
+            <input type="number" id="set_weekend_close" placeholder="26"/>
+            <div class="hint">26 = 2:00 AM</div>
           </div>
           <button class="save-btn" onclick="saveRules()">SAVE RULES</button>
         </div>
@@ -739,9 +749,17 @@ async function saveSetting(updates) {
 }
 
 function fillPricingFields() {
-  ["hourly_rate","cleaning_fee","hst_rate","min_hours","max_hours","studio_open","studio_close"].forEach(k => {
+  ["hourly_rate","cleaning_fee","hst_rate","min_hours","max_hours","weekday_open","weekday_close","weekend_open","weekend_close"].forEach(k => {
     const el = document.getElementById("set_" + k);
-    if (el) el.value = settings[k] ?? "";
+    if (el) {
+      const legacyMap = {
+        weekday_open: settings.weekday_open ?? settings.studio_open,
+        weekday_close: settings.weekday_close ?? settings.studio_close,
+        weekend_open: settings.weekend_open ?? settings.studio_open,
+        weekend_close: settings.weekend_close ?? settings.studio_close,
+      };
+      el.value = legacyMap[k] ?? settings[k] ?? "";
+    }
   });
 }
 
@@ -753,7 +771,20 @@ async function savePricing() {
 }
 async function saveRules() {
   try {
-    await saveSetting({ min_hours: document.getElementById("set_min_hours").value, max_hours: document.getElementById("set_max_hours").value, studio_open: document.getElementById("set_studio_open").value, studio_close: document.getElementById("set_studio_close").value });
+    const weekdayOpen = document.getElementById("set_weekday_open").value;
+    const weekdayClose = document.getElementById("set_weekday_close").value;
+    const weekendOpen = document.getElementById("set_weekend_open").value;
+    const weekendClose = document.getElementById("set_weekend_close").value;
+    await saveSetting({
+      min_hours: document.getElementById("set_min_hours").value,
+      max_hours: document.getElementById("set_max_hours").value,
+      weekday_open: weekdayOpen,
+      weekday_close: weekdayClose,
+      weekend_open: weekendOpen,
+      weekend_close: weekendClose,
+      studio_open: weekdayOpen,
+      studio_close: weekdayClose,
+    });
     toast("Rules updated ✓", "ok");
   } catch(e) { toast("Error: "+e.message,"err"); }
 }

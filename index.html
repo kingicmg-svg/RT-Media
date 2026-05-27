@@ -165,6 +165,24 @@
       return Number.isFinite(n) ? n : fallback;
     }
 
+    function formatClockHour(hour) {
+      const normalized = ((hour % 24) + 24) % 24;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      const display = normalized % 12 || 12;
+      return `${display}:00 ${ampm}`;
+    }
+
+    function normalizeCloseHour(openHour, closeHour) {
+      return closeHour <= openHour ? closeHour + 24 : closeHour;
+    }
+
+    function formatHoldTimer(seconds) {
+      const total = Math.max(0, Math.ceil(seconds));
+      const minutes = Math.floor(total / 60);
+      const remaining = total % 60;
+      return `${minutes}:${String(remaining).padStart(2, "0")}`;
+    }
+
     function parseAddonRate(value, fallback = 0) {
       if (typeof value === "number" && Number.isFinite(value)) return value;
       if (typeof value === "string") {
@@ -1050,18 +1068,33 @@
       const [selTime,   setSelTime]  = useState(null);
       const [calDate,   setCalDate]  = useState(new Date());
       const [payMethod, setPayMethod]= useState(null);
+      const [holdSeconds, setHoldSeconds] = useState(300);
       const minHours = Math.max(1, Math.round(numberOr(bookingConfig.minHours, 2)));
       const maxHours = Math.max(minHours, Math.round(numberOr(bookingConfig.maxHours, 12)));
       const hourlyRate = numberOr(bookingConfig.hourlyRate, 100);
       const cleaningFee = numberOr(bookingConfig.cleaningFee, 10);
       const HST_RATE = numberOr(bookingConfig.hstRate, 0.13);
-      const studioOpen = Math.round(numberOr(bookingConfig.studioOpen, 9));
-      const studioClose = Math.round(numberOr(bookingConfig.studioClose, 22));
+      const weekdayOpen = Math.round(numberOr(bookingConfig.weekdayOpen, 8));
+      const weekdayClose = Math.round(numberOr(bookingConfig.weekdayClose, 24));
+      const weekendOpen = Math.round(numberOr(bookingConfig.weekendOpen, 10));
+      const weekendClose = Math.round(numberOr(bookingConfig.weekendClose, 26));
       const [customHrs, setCustomHrs]= useState(minHours);
 
       useEffect(() => {
         setCustomHrs(h => Math.min(maxHours, Math.max(minHours, h)));
       }, [minHours, maxHours]);
+
+      useEffect(() => {
+        if (step !== 3) {
+          setHoldSeconds(300);
+          return;
+        }
+        setHoldSeconds(300);
+        const timer = setInterval(() => {
+          setHoldSeconds(seconds => Math.max(0, seconds - 1));
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [step]);
 
       const durationOptions = DURATIONS.map(d => {
         if (d.key === "custom") {
@@ -1091,13 +1124,17 @@
       const daysInMonth = new Date(year, month+1, 0).getDate();
       const CAL_DAYS    = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
+      const selectedDow = selDate ? selDate.getDay() : null;
+      const isWeekend = selectedDow === 0 || selectedDow === 6;
+      const dayOpen = isWeekend ? weekendOpen : weekdayOpen;
+      const dayClose = normalizeCloseHour(dayOpen, isWeekend ? weekendClose : weekdayClose);
+
       // Generate start times from admin-configured studio hours.
       const timeSlots = (() => {
         const slots = [];
-        for (let h = studioOpen; h + hrs <= studioClose; h++) {
-          const ampm = h >= 12 ? "PM" : "AM";
-          const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
-          slots.push(display + ":00 " + ampm);
+        if (!selDate) return slots;
+        for (let h = dayOpen; h + hrs <= dayClose; h++) {
+          slots.push(formatClockHour(h));
         }
         return slots;
       })();
@@ -1185,8 +1222,7 @@
                 const day = i+1;
                 const d   = new Date(year,month,day);
                 const isPast = d < today;
-                const isSun  = d.getDay() === 0;
-                const disabled = isPast || isSun;
+                const disabled = isPast;
                 const isSat  = d.getDay() === 6;
                 const isSel  = selDate && selDate.getTime() === d.getTime();
                 return (
@@ -1208,7 +1244,7 @@
             <div style={{marginBottom:40}}>
               <p style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:".06em",marginBottom:16,color:"#0D0D0D"}}>SELECT START TIME</p>
               <p style={{fontFamily:"'DM Sans'",fontSize:12,color:"#888",marginBottom:12}}>
-                Operating hours: {studioOpen}:00 - {studioClose}:00 (start times adjust by duration)
+                Operating hours: {formatClockHour(dayOpen)} - {formatClockHour(dayClose)} {isWeekend ? "(Sat - Sun)" : "(Mon - Fri)"}
               </p>
               {timeSlots.length === 0 && (
                 <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#D91E8C",marginBottom:12}}>
@@ -1367,7 +1403,7 @@
               <p style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700,color:"#B8860B",marginBottom:8}}>💳 PayPal Payment</p>
               <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#B8860B",lineHeight:1.7}}>
                 Click "Pay via PayPal" below. You'll be redirected to securely complete your <strong>${dueNow.toFixed(2)} deposit</strong> payment.<br/>
-                Time slot held for <strong>15 minutes</strong> while you complete payment.
+                Time slot held for <strong>5 minutes</strong> while you complete payment. Hold expires in <strong>{formatHoldTimer(holdSeconds)}</strong>.
               </p>
             </div>
           )}
@@ -1376,7 +1412,7 @@
               <p style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700,color:"#1e40af",marginBottom:8}}>💳 Digital Payment</p>
               <p style={{fontFamily:"'DM Sans'",fontSize:13,color:"#1e40af",lineHeight:1.7}}>
                 Click the button below to securely complete your <strong>${dueNow.toFixed(2)} deposit</strong> payment.<br/>
-                Time slot held for <strong>15 minutes</strong> while you complete payment.
+                Time slot held for <strong>5 minutes</strong> while you complete payment. Hold expires in <strong>{formatHoldTimer(holdSeconds)}</strong>.
               </p>
             </div>
           )}
@@ -1768,8 +1804,10 @@
         hstRate: numberOr(siteSettings.hst_rate, 0.13),
         minHours: Math.max(1, Math.round(numberOr(siteSettings.min_hours, 2))),
         maxHours: Math.max(1, Math.round(numberOr(siteSettings.max_hours, 12))),
-        studioOpen: Math.round(numberOr(siteSettings.studio_open, 9)),
-        studioClose: Math.round(numberOr(siteSettings.studio_close, 22)),
+        weekdayOpen: Math.round(numberOr(siteSettings.weekday_open ?? siteSettings.studio_open, 8)),
+        weekdayClose: Math.round(numberOr(siteSettings.weekday_close ?? siteSettings.studio_close, 24)),
+        weekendOpen: Math.round(numberOr(siteSettings.weekend_open ?? siteSettings.studio_open, 10)),
+        weekendClose: Math.round(numberOr(siteSettings.weekend_close ?? siteSettings.studio_close, 26)),
       };
 
       const toggleAddon    = a => setAddons(p    => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
