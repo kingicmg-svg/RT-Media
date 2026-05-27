@@ -370,6 +370,10 @@ app.get("/settings", async (req, res) => {
   rows.forEach(r => {
     try { out[r.key] = JSON.parse(r.value); } catch { out[r.key] = r.value; }
   });
+  if (out.weekday_open == null) out.weekday_open = 8;
+  if (out.weekday_close == null) out.weekday_close = 24;
+  if (out.weekend_open == null) out.weekend_open = 10;
+  if (out.weekend_close == null) out.weekend_close = 26;
   res.json(out);
 });
 

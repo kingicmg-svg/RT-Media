@@ -1941,10 +1941,10 @@
         hstRate: numberOr(siteSettings.hst_rate, 0.13),
         minHours: Math.max(1, Math.round(numberOr(siteSettings.min_hours, 2))),
         maxHours: Math.max(1, Math.round(numberOr(siteSettings.max_hours, 12))),
-        weekdayOpen: Math.round(numberOr(siteSettings.weekday_open ?? siteSettings.studio_open, 8)),
-        weekdayClose: Math.round(numberOr(siteSettings.weekday_close ?? siteSettings.studio_close, 24)),
-        weekendOpen: Math.round(numberOr(siteSettings.weekend_open ?? siteSettings.studio_open, 10)),
-        weekendClose: Math.round(numberOr(siteSettings.weekend_close ?? siteSettings.studio_close, 26)),
+        weekdayOpen: Math.round(numberOr(siteSettings.weekday_open, 8)),
+        weekdayClose: Math.round(numberOr(siteSettings.weekday_close, 24)),
+        weekendOpen: Math.round(numberOr(siteSettings.weekend_open, 10)),
+        weekendClose: Math.round(numberOr(siteSettings.weekend_close, 26)),
       };
 
       const toggleAddon    = a => setAddons(p    => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);

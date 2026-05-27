@@ -1043,10 +1043,10 @@ function fillPricingFields() {
     const el = document.getElementById("set_" + k);
     if (el) {
       const legacyMap = {
-        weekday_open: settings.weekday_open ?? settings.studio_open,
-        weekday_close: settings.weekday_close ?? settings.studio_close,
-        weekend_open: settings.weekend_open ?? settings.studio_open,
-        weekend_close: settings.weekend_close ?? settings.studio_close,
+        weekday_open: settings.weekday_open ?? 8,
+        weekday_close: settings.weekday_close ?? 24,
+        weekend_open: settings.weekend_open ?? 10,
+        weekend_close: settings.weekend_close ?? 26,
       };
       el.value = legacyMap[k] ?? settings[k] ?? "";
     }
