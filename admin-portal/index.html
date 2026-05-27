@@ -551,8 +551,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API    = "https://rtm-api-abop.onrender.com";
-const SITE   = "https://rtm-api-abop.onrender.com";
+const ORIGIN = window.location.origin || "https://rtm-api-abop.onrender.com";
+const API    = ORIGIN;
+const SITE   = ORIGIN;
 let secret   = "";
 let bookings = [];
 let settings = {};
@@ -1717,4 +1718,3 @@ document.getElementById("reschedModal").addEventListener("click",function(e){if(
 </script>
 </body>
 </html>
-/* Force redeploy 2026-05-26T20:10:00Z */
