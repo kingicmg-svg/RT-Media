@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3001;
 const ADMIN_SECRET = "rt_media26";
 const DEPLOY_TIME = new Date().toISOString();
 const VIDEOS_DIR = "/mnt/videos";
+const ADMIN_PORTAL_PATH = path.join(__dirname, "..", "admin-portal", "index.html");
 const RATE_LIMITS = new Map();
 const TRUSTED_ORIGINS = new Set([
   "https://rtm-api-abop.onrender.com",
@@ -81,6 +82,24 @@ if (!fs.existsSync(VIDEOS_DIR)) {
 }
 
 const upload = multer({ storage: multer.diskStorage({ destination: VIDEOS_DIR, filename: (req, file, cb) => cb(null, file.originalname) }) });
+
+function serveAdminPortalPage(req, res) {
+  try {
+    let html = fs.readFileSync(ADMIN_PORTAL_PATH, "utf8");
+    html = html
+      .replaceAll("https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG", "/RT%20MEDIA_animate%203.PNG")
+      .replaceAll("onerror=\"this.style.display='none'\"", "onerror=\"this.onerror=null;this.src='/apple-touch-icon.png'\"")
+      .replace("const API    = \"https://rtm-api-abop.onrender.com\";", "const ORIGIN = window.location.origin || \"https://rtm-api-abop.onrender.com\";\nconst API    = ORIGIN;")
+      .replace("const SITE   = \"https://rtm-api-abop.onrender.com\";", "const SITE   = ORIGIN;")
+      .replace(/\n\/\* Force redeploy 2026-05-26T20:10:00Z \*\/\s*$/, "\n");
+    res.type("html").send(html);
+  } catch (error) {
+    console.error("Failed to serve admin portal", error);
+    res.status(500).send("Portal unavailable");
+  }
+}
+
+app.get(["/admin-portal", "/admin-portal/", "/admin-portal/index.html"], serveAdminPortalPage);
 
 // Serve static files with MIME types
 app.use(express.static(path.join(__dirname, ".."), {
