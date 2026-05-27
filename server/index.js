@@ -252,14 +252,49 @@ function buildChatReply(message, settings) {
     };
   }
 
-  if (/(format|delivery|prores|dnxhd|h\.264|raw footage|turnaround|revision|licens|permit|location|colour|color)/i.test(text)) {
+  if (/(minimum|min|how many hours|shortest booking|least hours)/i.test(text)) {
     return {
-      reply: "FAQ quick answer: we deliver in common pro formats like ProRes, DNxHD, and H.264; turnaround is usually 2-4 weeks depending on scope; color grading is included on standard work; 2 revision rounds are included; and permits can be handled for location shoots when needed.",
+      reply: `The minimum booking is ${minHours} hours at ${formatChatMoney(hourlyRate)}/hr. This includes access to the infinity wall and full lighting setup.`,
       handoff: false,
     };
   }
 
-  if (/(email|contact|location|address|where are you|bookings@|rtablemedia@gmail.com)/i.test(text)) {
+  if (/(what's included|what is included|included in|what do i get|what comes with)/i.test(text)) {
+    return {
+      reply: `Every booking includes the infinity wall (CYC), full lighting setup, and flexible booking options. Add-ons like additional lighting, fog machines, or crew support are available if needed.`,
+      handoff: false,
+    };
+  }
+
+  if (/(payment method|accept|card|credit|etransfer|paypal|apple pay|google pay|how do i pay)/i.test(text)) {
+    return {
+      reply: "We accept Apple Pay, Google Pay, PayPal, and E-Transfer. You'll select your preferred method during checkout.",
+      handoff: false,
+    };
+  }
+
+  if (/(crew|director|producer|cinematographer|bring my own|hire|staff)/i.test(text)) {
+    return {
+      reply: `You can book just the CYC Wall and bring your own crew, or book a full production and select crew support (directors, producers, cinematographers, etc.). Custom packages are available through studio management.`,
+      handoff: false,
+    };
+  }
+
+  if (/(available|availability|same day|next week|can i book|when can|how soon)/i.test(text)) {
+    return {
+      reply: `You can check availability and book from the Book section. Select your preferred date and time during studio hours (Mon-Fri ${weekdayOpen}-${weekdayClose}, Sat-Sun ${weekendOpen}-${weekendClose}). If you need something custom, studio management can help.`,
+      handoff: false,
+    };
+  }
+
+  if (/(format|delivery|prores|dnxhd|h\.264|raw footage|turnaround|revision|licens|permit|colour|color|grading)/i.test(text)) {
+    return {
+      reply: "We deliver in common pro formats like ProRes, DNxHD, and H.264; turnaround is usually 2-4 weeks depending on scope; color grading is included on standard work; 2 revision rounds are included; and permits can be handled for location shoots when needed.",
+      handoff: false,
+    };
+  }
+
+  if (/(email|contact|location|address|where are you|bookings@|rtablemedia@gmail.com|phone|call)/i.test(text)) {
     return {
       reply: `You can reach studio management at ${studioEmail}. The studio is at 130 Westmore Drive, Etobicoke, Unit 2.`,
       handoff: false,
