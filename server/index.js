@@ -192,11 +192,18 @@ function buildChatReply(message, settings) {
   const cleaningFee = formatChatMoney(settings.cleaning_fee, 10);
   const hstRate = Number.isFinite(Number(settings.hst_rate)) ? Number(settings.hst_rate) : 0.13;
   const studioEmail = normalizeChatText(settings.studio_email) || "rtablemedia@gmail.com";
-  const serviceSummary = summarizeEnabledLabels(settings.services, ["music videos", "commercials", "corporate videos", "CYC wall rentals", "color grading"]);
-  const cycAddonSummary = summarizeEnabledLabels(settings.cyc_addons, []);
-  const crewAddonSummary = summarizeEnabledLabels(settings.crew_addons, []);
+  const serviceSummary = summarizeEnabledLabels(settings.services, ["music videos", "commercial and brand shoots", "full production", "CYC wall rentals", "color grading"]);
+  const cycAddonSummary = summarizeEnabledLabels(settings.cyc_addons, ["smoke / fog machine", "camera & run-gun kit", "additional lighting", "extra C-stands", "sandbags"]);
+  const crewAddonSummary = summarizeEnabledLabels(settings.crew_addons, ["director", "producer", "cinematographer", "gaffer", "hair & makeup"]);
 
   const wantsHuman = /(human|management|studio management|manager|person|representative|talk to someone|call me|reply by email|book a call|contact studio)/i.test(text);
+
+  if (wantsHuman) {
+    return {
+      reply: `I can pass this directly to studio management. Leave your name and email if you'd like a reply, or send your question here and the team will see it in the admin inbox.`,
+      handoff: true,
+    };
+  }
 
   if (/(hours|open|opening|close|closing|when are you open|schedule)/i.test(text)) {
     return {
@@ -240,7 +247,7 @@ function buildChatReply(message, settings) {
 
   if (/(services|what do you do|production|music video|commercial|brand|cyc|wall|studio)/i.test(text)) {
     return {
-      reply: `We offer ${serviceSummary.join(", ")}. If you want a quote or custom package, studio management can take it from here.`,
+      reply: `We offer ${serviceSummary.join(", ")}. The studio page also highlights the CYC wall, full lighting setup, and flexible booking options for music videos, brand campaigns, and full productions. If you want a quote or custom package, studio management can take it from here.`,
       handoff: false,
     };
   }
