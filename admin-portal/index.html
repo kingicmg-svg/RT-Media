@@ -134,6 +134,39 @@
     .portfolio-item-actions button:hover{border-color:#444;color:#ccc}
     .portfolio-item-actions button.delete:hover{border-color:#f87171;color:#f87171}
 
+    /* Chat inbox */
+    .chat-grid{display:grid;grid-template-columns:320px 1fr;gap:16px;min-height:70vh}
+    .chat-list,.chat-panel{background:#111;border:1px solid #1e1e1e;border-radius:14px;overflow:hidden}
+    .chat-list{display:flex;flex-direction:column;min-height:70vh}
+    .chat-list-hd,.chat-panel-hd{padding:16px 18px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .chat-list-hd h3,.chat-panel-hd h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em;color:#FF7835}
+    .chat-list-body{overflow:auto;flex:1}
+    .chat-thread{padding:14px 16px;border-bottom:1px solid #1a1a1a;cursor:pointer;transition:background .15s}
+    .chat-thread:hover{background:#151515}
+    .chat-thread.on{background:rgba(255,61,107,.08);border-left:3px solid #FF3D6B;padding-left:13px}
+    .chat-thread-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+    .chat-thread-name{font-size:14px;font-weight:600;color:#ddd}
+    .chat-thread-meta{font-size:11px;color:#555;display:flex;justify-content:space-between;gap:8px}
+    .chat-thread-preview{font-size:12px;color:#888;line-height:1.45;margin-top:4px}
+    .chat-pill{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:rgba(255,120,53,.12);color:#FF7835}
+    .chat-pill.open{background:rgba(34,197,94,.12);color:#22c55e}
+    .chat-pill.needs_human{background:rgba(255,61,107,.12);color:#FF3D6B}
+    .chat-count{background:#FF3D6B;color:#fff;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:700}
+    .chat-panel{display:flex;flex-direction:column;min-height:70vh}
+    .chat-panel-body{padding:18px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:12px;background:radial-gradient(circle at top,rgba(255,255,255,.02),transparent 36%),#0d0d0d}
+    .chat-empty{display:flex;align-items:center;justify-content:center;height:100%;color:#555;font-size:14px;padding:36px;text-align:center}
+    .chat-line{max-width:82%;padding:12px 14px;border-radius:16px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+    .chat-line.user{background:#151515;border:1px solid #262626;color:#ddd;align-self:flex-start;border-bottom-left-radius:6px}
+    .chat-line.admin{background:linear-gradient(135deg,#FF3D6B,#FF7835);color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+    .chat-line.bot{background:#111;border:1px solid #232323;color:#cfcfcf;align-self:flex-start;border-bottom-left-radius:6px}
+    .chat-reply{padding:16px;border-top:1px solid #1a1a1a;background:#0f0f0f;display:flex;flex-direction:column;gap:10px}
+    .chat-reply textarea{width:100%;min-height:110px;padding:12px 14px;border:1px solid #2a2a2a;border-radius:10px;background:#151515;color:#fff;resize:vertical;font-size:14px;outline:none}
+    .chat-reply textarea:focus{border-color:#FF7835}
+    .chat-reply-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .chat-mini-btn{padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#FF7835,#FF3D6B);color:#fff;font-weight:700;cursor:pointer}
+    .chat-mini-btn.secondary{background:transparent;border:1px solid #333;color:#aaa}
+    .chat-mini-btn.secondary:hover{border-color:#555;color:#ddd}
+
     /* ── Modal ───────────────────────────────────────────────── */
     .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
     .modal-bg.open{display:flex}
@@ -217,6 +250,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Bookings <span class="badge" id="pendingBadge" style="display:none">0</span>
       </button>
+      <button class="sb-item" onclick="showPage('chat',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+        Chat <span class="badge" id="chatBadge" style="display:none">0</span>
+      </button>
       <button class="sb-item" onclick="showPage('portfolio',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Portfolio
@@ -263,6 +300,44 @@
         <button class="ftab" onclick="filterBookings('production',this)">Production</button>
       </div>
       <div id="bList"></div>
+    </div>
+
+    <!-- CHAT PAGE -->
+    <div id="page-chat" style="display:none">
+      <div class="page-title">Chat Inbox</div>
+      <div class="page-sub">Monitor website chat, answer FAQ questions, and reply directly to studio visitors</div>
+      <div class="chat-grid">
+        <div class="chat-list">
+          <div class="chat-list-hd">
+            <h3>Conversations</h3>
+            <button class="chat-mini-btn secondary" onclick="reloadChats()">Refresh</button>
+          </div>
+          <div class="chat-list-body" id="chatThreadList"></div>
+        </div>
+        <div class="chat-panel">
+          <div class="chat-panel-hd">
+            <div>
+              <h3 id="chatThreadTitle">Select a conversation</h3>
+              <div style="font-size:12px;color:#666" id="chatThreadMeta">Website chat messages appear here</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="chat-mini-btn secondary" onclick="markActiveChatRead()">Mark Read</button>
+              <button class="chat-mini-btn secondary" onclick="closeActiveChatThread()">Close</button>
+            </div>
+          </div>
+          <div class="chat-panel-body" id="chatMessageList">
+            <div class="chat-empty">Pick a conversation to load messages.</div>
+          </div>
+          <div class="chat-reply">
+            <textarea id="chatReplyInput" placeholder="Reply to the visitor or answer their question..."></textarea>
+            <div class="chat-reply-actions">
+              <button class="chat-mini-btn" onclick="sendChatReply()">Send Reply</button>
+              <button class="chat-mini-btn secondary" onclick="sendChatSavedFAQ('hours')">Insert Hours FAQ</button>
+              <button class="chat-mini-btn secondary" onclick="sendChatSavedFAQ('booking')">Insert Booking FAQ</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- PORTFOLIO PAGE -->
@@ -482,6 +557,10 @@ let secret   = "";
 let bookings = [];
 let settings = {};
 let bFilter  = "all";
+let chatThreads = [];
+let chatMessages = [];
+let activeChatThreadId = null;
+let chatPollTimer = null;
 const AUTO_THUMB_TIME_SECONDS = 70;
 const thumbCache = new Map();
 const DEFAULT_SERVICES = [
@@ -647,6 +726,8 @@ async function doLogin() {
     document.getElementById("app").style.display = "block";
     await loadSettings();
     await reloadBookings();
+    await reloadChats();
+    startChatPolling();
   } catch(e) {
     document.getElementById("loginErr").textContent = "Connection error: " + e.message;
   }
@@ -672,6 +753,8 @@ async function verifyTwoFa() {
     document.getElementById("app").style.display = "block";
     await loadSettings();
     await reloadBookings();
+    await reloadChats();
+    startChatPolling();
   } catch(e) {
     document.getElementById("twoFaErr").textContent = "Error: " + e.message;
   }
@@ -684,6 +767,8 @@ function logout() {
     body: JSON.stringify({ sessionToken: secret })
   });
   secret = ""; bookings = []; settings = {};
+  chatThreads = []; chatMessages = []; activeChatThreadId = null;
+  stopChatPolling();
   document.getElementById("app").style.display = "none";
   document.getElementById("login").style.display = "flex";
   document.getElementById("pwInput").value = "";
@@ -705,6 +790,7 @@ function showPage(name, btn) {
   if (name === "studio")  fillStudioFields();
   if (name === "security") loadSecurityPanel();
   if (name === "portfolio") { loadPortfolio(); loadCycWall(); }
+  if (name === "chat") reloadChats();
 }
 
 function setTwoFaUi(enabled) {
@@ -735,6 +821,210 @@ function closeMobMenu() {
 async function loadSettings() {
   const r = await fetch(`${API}/settings`);
   settings = hydrateSettingsForPortal(await r.json());
+}
+
+function startChatPolling() {
+  if (chatPollTimer) return;
+  chatPollTimer = setInterval(() => {
+    if (secret && document.getElementById("page-chat")?.style.display === "block") {
+      reloadChats();
+    } else {
+      reloadChatThreadsOnly();
+    }
+  }, 15000);
+}
+
+function stopChatPolling() {
+  if (chatPollTimer) clearInterval(chatPollTimer);
+  chatPollTimer = null;
+}
+
+function renderChatBadge() {
+  const badge = document.getElementById("chatBadge");
+  const unread = Array.isArray(chatThreads) ? chatThreads.reduce((sum, t) => sum + Number(t.unread_count || 0), 0) : 0;
+  if (!badge) return;
+  badge.textContent = unread;
+  badge.style.display = unread ? "inline" : "none";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderChatThreads() {
+  const list = document.getElementById("chatThreadList");
+  if (!list) return;
+  if (!chatThreads.length) {
+    list.innerHTML = '<div class="chat-empty">No chat conversations yet.</div>';
+    document.getElementById("chatThreadTitle").textContent = "Select a conversation";
+    document.getElementById("chatThreadMeta").textContent = "Website chat messages appear here";
+    document.getElementById("chatMessageList").innerHTML = '<div class="chat-empty">Pick a conversation to load messages.</div>';
+    return;
+  }
+  list.innerHTML = chatThreads.map(t => {
+    const on = String(t.id) === String(activeChatThreadId);
+    const title = t.name || t.email || `Visitor ${t.visitor_id.slice(-4)}`;
+    const meta = [t.email, t.updated_at ? new Date(t.updated_at).toLocaleString() : ""].filter(Boolean).join(" · ");
+    return `
+      <div class="chat-thread${on ? ' on' : ''}" onclick="selectChatThread('${t.id}')">
+        <div class="chat-thread-top">
+          <div class="chat-thread-name">${escapeHtml(title)}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="chat-pill ${t.status || 'open'}">${escapeHtml(t.status || 'open')}</span>
+            ${Number(t.unread_count || 0) ? `<span class="chat-count">${t.unread_count}</span>` : ''}
+          </div>
+        </div>
+        <div class="chat-thread-meta"><span>${escapeHtml(t.visitor_id)}</span><span>${escapeHtml(meta)}</span></div>
+        <div class="chat-thread-preview">${escapeHtml((t.last_message || 'No messages yet').slice(0,120))}</div>
+      </div>
+    `;
+  }).join("");
+  renderChatBadge();
+}
+
+function renderChatMessages() {
+  const list = document.getElementById("chatMessageList");
+  const thread = chatThreads.find(t => String(t.id) === String(activeChatThreadId));
+  if (!list) return;
+  if (!activeChatThreadId || !thread) {
+    list.innerHTML = '<div class="chat-empty">Pick a conversation to load messages.</div>';
+    return;
+  }
+  document.getElementById("chatThreadTitle").textContent = thread.name || thread.email || `Visitor ${thread.visitor_id.slice(-4)}`;
+  document.getElementById("chatThreadMeta").textContent = `${thread.visitor_id} · ${thread.status || 'open'} · ${thread.email || 'No email yet'}`;
+  if (!chatMessages.length) {
+    list.innerHTML = '<div class="chat-empty">No messages in this thread yet.</div>';
+    return;
+  }
+  list.innerHTML = chatMessages.map(m => `<div class="chat-line ${escapeHtml(m.role)}">${escapeHtml(m.message)}</div>`).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+async function reloadChatThreadsOnly() {
+  try {
+    const r = await fetch(`${API}/chat/threads?secret=${encodeURIComponent(secret)}`);
+    if (!r.ok) return;
+    chatThreads = await r.json();
+    renderChatThreads();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function reloadChats() {
+  try {
+    const r = await fetch(`${API}/chat/threads?secret=${encodeURIComponent(secret)}`);
+    if (!r.ok) return;
+    chatThreads = await r.json();
+    renderChatThreads();
+    if (activeChatThreadId) {
+      await loadChatMessages(activeChatThreadId, true);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function loadChatMessages(threadId, markRead = false) {
+  if (!threadId) return;
+  try {
+    const r = await fetch(`${API}/chat/messages/${threadId}?secret=${encodeURIComponent(secret)}`);
+    if (!r.ok) return;
+    chatMessages = await r.json();
+    activeChatThreadId = threadId;
+    renderChatThreads();
+    renderChatMessages();
+    if (markRead) await markActiveChatRead();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function selectChatThread(threadId) {
+  await loadChatMessages(threadId, true);
+}
+
+async function markActiveChatRead() {
+  if (!activeChatThreadId) return;
+  try {
+    await fetch(`${API}/chat/mark-read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret, thread_id: activeChatThreadId })
+    });
+    chatThreads = chatThreads.map(t => String(t.id) === String(activeChatThreadId) ? { ...t, unread_count: 0 } : t);
+    renderChatThreads();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function closeActiveChatThread() {
+  if (!activeChatThreadId) return;
+  try {
+    await fetch(`${API}/chat/close`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret, thread_id: activeChatThreadId })
+    });
+    await reloadChats();
+    toast("Conversation closed ✓", "ok");
+  } catch (e) {
+    toast("Error: " + e.message, "err");
+  }
+}
+
+function sendChatSavedFAQ(kind) {
+  const input = document.getElementById("chatReplyInput");
+  if (!input) return;
+  const formatHour = value => {
+    const hour = Number(value);
+    const normalized = ((Number.isFinite(hour) ? hour : 0) % 24 + 24) % 24;
+    const ampm = normalized >= 12 ? "PM" : "AM";
+    const display = normalized % 12 || 12;
+    return `${display}:00 ${ampm}`;
+  };
+  const weekdayOpen = formatHour(settings.weekday_open ?? settings.studio_open ?? 8);
+  const weekdayClose = formatHour(settings.weekday_close ?? settings.studio_close ?? 24);
+  const weekendOpen = formatHour(settings.weekend_open ?? settings.studio_open ?? 10);
+  const weekendClose = formatHour(settings.weekend_close ?? settings.studio_close ?? 26);
+  const snippets = {
+    hours: `Studio hours are Mon - Fri: ${weekdayOpen} - ${weekdayClose} and Sat - Sun: ${weekendOpen} - ${weekendClose}.`,
+    booking: "Bookings can be started from the Book section. Payment holds last 5 minutes while checkout is in progress, and the admin inbox can follow up if you need a custom quote.",
+  };
+  input.value = snippets[kind] || "";
+}
+
+async function sendChatReply() {
+  if (!activeChatThreadId) {
+    toast("Select a conversation first", "err");
+    return;
+  }
+  const input = document.getElementById("chatReplyInput");
+  const message = input.value.trim();
+  if (!message) {
+    toast("Reply is empty", "err");
+    return;
+  }
+  try {
+    const r = await fetch(`${API}/chat/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret, thread_id: activeChatThreadId, message })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || "Failed to send reply");
+    input.value = "";
+    await reloadChats();
+    toast("Reply sent ✓", "ok");
+  } catch (e) {
+    toast("Error: " + e.message, "err");
+  }
 }
 
 async function saveSetting(updates) {

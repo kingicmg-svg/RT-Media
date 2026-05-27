@@ -337,6 +337,32 @@
       .cp{padding:10px 20px;border-radius:100px;border:1.5px solid #E8E8E8;background:#fff;color:#555;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap}
       .cp.on{border-color:var(--p);background:#FFF5F7;color:var(--p)}
 
+      .chat-launch{position:fixed;right:22px;bottom:22px;z-index:500;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--p),var(--o));color:#fff;border:none;border-radius:999px;padding:14px 18px;box-shadow:0 16px 42px rgba(0,0,0,.2);cursor:pointer;transition:transform .2s,box-shadow .2s}
+      .chat-launch:hover{transform:translateY(-2px);box-shadow:0 20px 48px rgba(0,0,0,.28)}
+      .chat-fab{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+      .chat-shell{position:fixed;right:22px;bottom:82px;z-index:520;width:min(390px,calc(100vw - 24px));max-height:min(72vh,720px);background:#0D0D0D;border:1px solid rgba(255,255,255,.12);border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden}
+      .chat-hd{padding:16px 18px;background:linear-gradient(135deg,rgba(255,61,107,.14),rgba(255,120,53,.14));border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .chat-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.08em;color:#fff}
+      .chat-sub{font-size:11px;color:rgba(255,255,255,.54);letter-spacing:.06em;text-transform:uppercase}
+      .chat-close{background:transparent;border:none;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;line-height:1}
+      .chat-body{padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto;flex:1;background:radial-gradient(circle at top,rgba(255,255,255,.03),transparent 42%),#0D0D0D}
+      .chat-banner{padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.68);font-size:13px;line-height:1.55}
+      .chat-msg{max-width:88%;padding:12px 14px;border-radius:16px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+      .chat-msg.bot{background:#171717;border:1px solid rgba(255,255,255,.08);color:#f0f0f0;border-bottom-left-radius:6px;align-self:flex-start}
+      .chat-msg.user{background:linear-gradient(135deg,var(--p),var(--o));color:#fff;border-bottom-right-radius:6px;align-self:flex-end}
+      .chat-quick{display:flex;flex-wrap:wrap;gap:8px}
+      .chat-quick button{border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.72);border-radius:999px;padding:8px 12px;font-size:12px;cursor:pointer;transition:all .15s}
+      .chat-quick button:hover{border-color:var(--p);color:#fff;background:rgba(255,61,107,.12)}
+      .chat-form{padding:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:10px;background:#0B0B0B}
+      .chat-row{display:flex;gap:10px}
+      .chat-row .ri{background:#151515;border-color:#222;color:#fff}
+      .chat-row .ri:focus{border-color:var(--p)}
+      .chat-input{min-height:44px;resize:none}
+      .chat-send{border:none;border-radius:14px;padding:12px 16px;background:linear-gradient(135deg,var(--p),var(--o));color:#fff;font-weight:700;cursor:pointer}
+      .chat-send:disabled{opacity:.55;cursor:not-allowed}
+      .chat-note{font-size:11px;color:rgba(255,255,255,.44);line-height:1.45}
+      .chat-meta{font-size:11px;color:rgba(255,255,255,.44);display:flex;justify-content:space-between;gap:8px}
+
       .play{width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.22);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;transition:transform .2s,background .2s}
       .play:hover{transform:scale(1.14);background:rgba(255,255,255,.34)}
       .tri{width:0;height:0;border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:16px solid rgba(255,255,255,.9);margin-left:4px}
@@ -1524,6 +1550,109 @@
       );
     }
 
+    function ChatWidget({ studioInfo }) {
+      const [open, setOpen] = useState(false);
+      const [messages, setMessages] = useState([
+        { role: "bot", text: "Hi, I can help with bookings, hours, add-ons, services, or pass your question to studio management." },
+      ]);
+      const [input, setInput] = useState("");
+      const [name, setName] = useState(() => localStorage.getItem("rtm_chat_name") || "");
+      const [email, setEmail] = useState(() => localStorage.getItem("rtm_chat_email") || "");
+      const [visitorId, setVisitorId] = useState(() => localStorage.getItem("rtm_chat_visitor") || `vis_${Math.random().toString(36).slice(2)}`);
+      const [threadId, setThreadId] = useState(() => localStorage.getItem("rtm_chat_thread") || "");
+      const [loading, setLoading] = useState(false);
+      const [handoff, setHandoff] = useState(false);
+      const endRef = useRef(null);
+
+      useEffect(() => { localStorage.setItem("rtm_chat_visitor", visitorId); }, [visitorId]);
+      useEffect(() => { localStorage.setItem("rtm_chat_name", name); }, [name]);
+      useEffect(() => { localStorage.setItem("rtm_chat_email", email); }, [email]);
+      useEffect(() => { if (threadId) localStorage.setItem("rtm_chat_thread", threadId); }, [threadId]);
+
+      useEffect(() => {
+        if (open && endRef.current) endRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, [messages, open]);
+
+      const sendMessage = async (text) => {
+        const clean = String(text || "").trim();
+        if (!clean || loading) return;
+        setMessages(prev => [...prev, { role: "user", text: clean }]);
+        setInput("");
+        setLoading(true);
+        try {
+          const r = await fetch(`${API_BASE}/chat/message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ visitor_id: visitorId, name, email, message: clean, source: "website-chat" }),
+          });
+          const d = await r.json();
+          if (!d.ok) throw new Error(d.error || "Chat failed");
+          if (d.visitor_id && d.visitor_id !== visitorId) setVisitorId(d.visitor_id);
+          if (d.thread_id) setThreadId(String(d.thread_id));
+          setMessages(prev => [...prev, { role: "bot", text: d.reply || "Studio management will review your message shortly." }]);
+          setHandoff(Boolean(d.handoff));
+        } catch (e) {
+          setMessages(prev => [...prev, { role: "bot", text: `I could not send that right now. Please email ${cleanText(studioInfo?.studio_email) || CONTACT_EMAIL}.` }]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const quickPrompts = [
+        "What are your hours?",
+        "How do deposits and holds work?",
+        "What services do you offer?",
+        "I want to talk to studio management",
+      ];
+
+      return (
+        <>
+          {!open && (
+            <button className="chat-launch" onClick={()=>setOpen(true)} aria-label="Open chat">
+              <span className="chat-fab">💬</span>
+              <span style={{fontFamily:"'DM Sans'",fontSize:13,fontWeight:700}}>Chat with RTM</span>
+            </button>
+          )}
+          {open && (
+            <div className="chat-shell" role="dialog" aria-label="Round Table Media assistant chat">
+              <div className="chat-hd">
+                <div>
+                  <div className="chat-title">RTM Assistant</div>
+                  <div className="chat-sub">FAQ first. Studio management on request.</div>
+                </div>
+                <button className="chat-close" onClick={()=>setOpen(false)} aria-label="Close chat">×</button>
+              </div>
+              <div className="chat-body">
+                <div className="chat-banner">
+                  Ask about bookings, hours, pricing, add-ons, studio services, or delivery timelines. If you want a human, I can send your message directly to studio management.
+                </div>
+                <div className="chat-quick">
+                  {quickPrompts.map(q => <button key={q} onClick={()=>sendMessage(q)} disabled={loading}>{q}</button>)}
+                </div>
+                {messages.map((m, i) => <div key={i} className={`chat-msg ${m.role}`}>{m.text}</div>)}
+                <div ref={endRef} />
+              </div>
+              <div className="chat-form">
+                <div className="chat-row">
+                  <input className="ri" placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} />
+                  <input className="ri" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+                </div>
+                <textarea className="ri chat-input" rows={3} placeholder={handoff ? "Leave a message for studio management..." : "Type your question..."} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault(); sendMessage(input);}}} />
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  <button className="chat-send" onClick={()=>sendMessage(input)} disabled={loading || !input.trim()}>{loading ? "Sending..." : (handoff ? "Send to management" : "Send message")}</button>
+                </div>
+                <div className="chat-meta">
+                  <span>{handoff ? "Human handoff enabled" : "Automated FAQ assistant"}</span>
+                  <span>{cleanText(studioInfo?.studio_email) || CONTACT_EMAIL}</span>
+                </div>
+                <div className="chat-note">Studio management can review this conversation in the admin portal.</div>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
     function Footer({ studioInfo }) {
       const studioEmail = cleanText(studioInfo?.studio_email) || CONTACT_EMAIL;
       return (
@@ -1635,8 +1764,12 @@
         hst_rate: 0.13,
         min_hours: 2,
         max_hours: 12,
-        studio_open: 9,
-        studio_close: 22,
+        studio_open: 8,
+        studio_close: 24,
+        weekday_open: 8,
+        weekday_close: 24,
+        weekend_open: 10,
+        weekend_close: 26,
         studio_name: "Round Table Media",
         studio_city: "Toronto, Ontario",
         studio_email: CONTACT_EMAIL,
@@ -1695,8 +1828,12 @@
                   hst_rate: numberOr(sData.hst_rate, prev.hst_rate),
                   min_hours: Math.max(1, Math.round(numberOr(sData.min_hours, prev.min_hours))),
                   max_hours: Math.max(1, Math.round(numberOr(sData.max_hours, prev.max_hours))),
-                  studio_open: Math.round(numberOr(sData.studio_open, prev.studio_open)),
-                  studio_close: Math.round(numberOr(sData.studio_close, prev.studio_close)),
+                  studio_open: Math.round(numberOr(sData.studio_open ?? sData.weekday_open, prev.studio_open)),
+                  studio_close: Math.round(numberOr(sData.studio_close ?? sData.weekday_close, prev.studio_close)),
+                  weekday_open: Math.round(numberOr(sData.weekday_open ?? sData.studio_open, prev.weekday_open)),
+                  weekday_close: Math.round(numberOr(sData.weekday_close ?? sData.studio_close, prev.weekday_close)),
+                  weekend_open: Math.round(numberOr(sData.weekend_open ?? sData.studio_open, prev.weekend_open)),
+                  weekend_close: Math.round(numberOr(sData.weekend_close ?? sData.studio_close, prev.weekend_close)),
                   studio_name: cleanText(sData.studio_name) || prev.studio_name,
                   studio_city: cleanText(sData.studio_city) || prev.studio_city,
                   studio_email: cleanText(sData.studio_email) || prev.studio_email,
@@ -1898,6 +2035,7 @@
             studioEmail={cleanText(siteSettings.studio_email) || CONTACT_EMAIL}
           />
           <Footer studioInfo={siteSettings}/>
+          <ChatWidget studioInfo={siteSettings}/>
         </>
       );
     }

@@ -77,6 +77,127 @@ async function isAdminAuthorized(secretOrToken) {
   return isSessionTokenValid(secretOrToken);
 }
 
+function normalizeChatText(value) {
+  return String(value || "").trim();
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatChatHours(value, fallback = 0) {
+  const hour = Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const normalized = ((hour % 24) + 24) % 24;
+  const ampm = normalized >= 12 ? "PM" : "AM";
+  const display = normalized % 12 || 12;
+  return `${display}:00 ${ampm}`;
+}
+
+async function getSettingsMap() {
+  const { rows } = await pool.query("SELECT key, value FROM settings");
+  const out = {};
+  rows.forEach(r => {
+    try { out[r.key] = JSON.parse(r.value); } catch { out[r.key] = r.value; }
+  });
+  return out;
+}
+
+function buildChatReply(message, settings) {
+  const text = normalizeChatText(message).toLowerCase();
+  const weekdayOpen = formatChatHours(settings.weekday_open ?? settings.studio_open, 8);
+  const weekdayClose = formatChatHours(settings.weekday_close ?? settings.studio_close, 24);
+  const weekendOpen = formatChatHours(settings.weekend_open ?? settings.studio_open, 10);
+  const weekendClose = formatChatHours(settings.weekend_close ?? settings.studio_close, 26);
+  const studioEmail = normalizeChatText(settings.studio_email) || "rtablemedia@gmail.com";
+
+  const wantsHuman = /(human|management|manager|person|representative|talk to someone|call me|reply by email|book a call|contact studio)/i.test(text);
+
+  if (/(hours|open|opening|close|closing|when are you open|schedule)/i.test(text)) {
+    return {
+      reply: `Studio hours are Mon - Fri: ${weekdayOpen} - ${weekdayClose} and Sat - Sun: ${weekendOpen} - ${weekendClose}.`,
+      handoff: false,
+    };
+  }
+
+  if (/(book|booking|deposit|hold|payment|pay|pay via|pay by|paypal|apple pay|google pay|etransfer)/i.test(text)) {
+    return {
+      reply: `Bookings can be started from the Book section. The CYC wall uses hourly pricing, add-ons are listed in the quote, and payment holds last 5 minutes while checkout is in progress. If you want, I can pass this to studio management.`,
+      handoff: false,
+    };
+  }
+
+  if (/(services|what do you do|production|music video|commercial|brand|cyc|wall|studio)/i.test(text)) {
+    return {
+      reply: "We handle music videos, commercial and brand shoots, full production, and CYC wall rentals. If you want a quote or a custom package, studio management can take it from here.",
+      handoff: false,
+    };
+  }
+
+  if (/(format|delivery|prores|dnxhd|h\.264|raw footage|turnaround|revision|licens|permit|location|colour|color)/i.test(text)) {
+    return {
+      reply: "FAQ quick answer: we deliver in common pro formats like ProRes, DNxHD, and H.264; turnaround is usually 2-4 weeks depending on scope; color grading is included on standard work; 2 revision rounds are included; and permits can be handled for location shoots when needed.",
+      handoff: false,
+    };
+  }
+
+  if (/(email|contact|location|address|where are you|bookings@|rtablemedia@gmail.com)/i.test(text)) {
+    return {
+      reply: `You can reach studio management at ${studioEmail}. The studio is at 130 Westmore Drive, Etobicoke, Unit 2.`,
+      handoff: false,
+    };
+  }
+
+  if (wantsHuman || text.length < 18) {
+    return {
+      reply: `I can pass this directly to studio management. Leave your name and email if you'd like a reply, or send your question here and the team will see it in the admin inbox.`,
+      handoff: true,
+    };
+  }
+
+  return {
+    reply: `I can help with bookings, hours, add-ons, delivery timelines, or studio services. If you want a human follow-up, I can send this straight to studio management.`,
+    handoff: true,
+  };
+}
+
+async function createChatThread(visitorId, name, email) {
+  const { rows } = await pool.query(
+    `INSERT INTO chat_threads (visitor_id, name, email, status, last_message_at)
+     VALUES ($1, $2, $3, 'open', NOW())
+     ON CONFLICT (visitor_id) DO UPDATE
+       SET name = COALESCE(EXCLUDED.name, chat_threads.name),
+           email = COALESCE(EXCLUDED.email, chat_threads.email),
+           updated_at = NOW()
+     RETURNING *`,
+    [visitorId, name || null, email || null]
+  );
+  return rows[0];
+}
+
+async function addChatMessage(threadId, role, message, senderName = null, source = 'site', markRead = false) {
+  const { rows } = await pool.query(
+    `INSERT INTO chat_messages (thread_id, role, sender_name, message, source, read_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [threadId, role, senderName, message, source, markRead ? new Date() : null]
+  );
+  await pool.query(
+    `UPDATE chat_threads
+        SET last_message = $1,
+            last_message_at = NOW(),
+            updated_at = NOW(),
+            status = CASE WHEN $2 = 'admin' THEN 'open' ELSE status END
+      WHERE id = $3`,
+    [message, role, threadId]
+  );
+  return rows[0];
+}
+
 // ── POST /booking  (CYC Wall) ─────────────────────────────────────────────────
 app.post("/booking", async (req, res) => {
   try {
@@ -266,6 +387,131 @@ app.put("/settings", async (req, res) => {
     }
     res.json({ ok: true });
   } catch(e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── CHAT ────────────────────────────────────────────────────────────────────
+app.post("/chat/message", async (req, res) => {
+  try {
+    const visitorId = normalizeChatText(req.body.visitor_id) || Math.random().toString(36).slice(2);
+    const name = normalizeChatText(req.body.name);
+    const email = normalizeChatText(req.body.email);
+    const message = normalizeChatText(req.body.message);
+    const source = normalizeChatText(req.body.source) || 'site';
+
+    if (!message) return res.status(400).json({ ok: false, error: "Message required" });
+
+    const settings = await getSettingsMap();
+    const thread = await createChatThread(visitorId, name, email);
+    await addChatMessage(thread.id, 'user', message, name || null, source, false);
+
+    const replyData = buildChatReply(message, settings);
+    await addChatMessage(thread.id, 'bot', replyData.reply, 'RTM Assistant', 'bot', true);
+
+    if (replyData.handoff) {
+      await pool.query(`UPDATE chat_threads SET status='needs_human', updated_at=NOW() WHERE id=$1`, [thread.id]);
+    }
+
+    if (replyData.handoff && normalizeChatText(settings.studio_email)) {
+      try {
+        await em.send({
+          to: normalizeChatText(settings.studio_email),
+          toName: normalizeChatText(settings.studio_name) || 'Round Table Media',
+          subject: `New website chat message${name ? ` from ${name}` : ''}`,
+          html: `<h2>New website chat message</h2><p><strong>Name:</strong> ${escapeHtml(name || 'Visitor')}</p><p><strong>Email:</strong> ${escapeHtml(email || '—')}</p><p><strong>Message:</strong><br/>${escapeHtml(message).replace(/\n/g,'<br/>')}</p>`,
+        });
+      } catch (mailErr) {
+        console.error('Chat notification email failed:', mailErr.message);
+      }
+    }
+
+    res.json({ ok: true, visitor_id: visitorId, thread_id: thread.id, reply: replyData.reply, handoff: replyData.handoff });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/chat/threads", async (req, res) => {
+  try {
+    if (!(await isAdminAuthorized(req.query.secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const { rows } = await pool.query(`
+      SELECT
+        t.id,
+        t.visitor_id,
+        t.name,
+        t.email,
+        t.status,
+        t.last_message,
+        t.last_message_at,
+        t.updated_at,
+        COALESCE(SUM(CASE WHEN m.role='user' AND m.read_at IS NULL THEN 1 ELSE 0 END), 0)::int AS unread_count
+      FROM chat_threads t
+      LEFT JOIN chat_messages m ON m.thread_id = t.id
+      GROUP BY t.id
+      ORDER BY t.last_message_at DESC, t.id DESC
+    `);
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/chat/messages/:threadId", async (req, res) => {
+  try {
+    if (!(await isAdminAuthorized(req.query.secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const { rows } = await pool.query(
+      `SELECT * FROM chat_messages WHERE thread_id=$1 ORDER BY created_at ASC`,
+      [req.params.threadId]
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post("/chat/reply", async (req, res) => {
+  try {
+    const { secret, thread_id, message } = req.body;
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const threadId = Number(thread_id);
+    const text = normalizeChatText(message);
+    if (!threadId || !text) return res.status(400).json({ ok: false, error: 'Thread and message required' });
+    await addChatMessage(threadId, 'admin', text, 'Studio Management', 'admin', true);
+    await pool.query(`UPDATE chat_threads SET status='open', updated_at=NOW() WHERE id=$1`, [threadId]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post("/chat/mark-read", async (req, res) => {
+  try {
+    const { secret, thread_id } = req.body;
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    await pool.query(
+      `UPDATE chat_messages SET read_at=COALESCE(read_at, NOW()) WHERE thread_id=$1 AND role='user'`,
+      [Number(thread_id)]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post("/chat/close", async (req, res) => {
+  try {
+    const { secret, thread_id } = req.body;
+    if (!(await isAdminAuthorized(secret))) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    await pool.query(`UPDATE chat_threads SET status='closed', updated_at=NOW() WHERE id=$1`, [Number(thread_id)]);
+    res.json({ ok: true });
+  } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });
   }
