@@ -1,21 +1,36 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
 const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+const ADMIN_PORTAL_PATH = path.join(__dirname, "..", "admin-portal", "index.html");
 
 app.use(cors());
 app.use(express.json());
 
+function serveAdminPortalPage(req, res) {
+  try {
+    let html = fs.readFileSync(ADMIN_PORTAL_PATH, "utf8");
+    html = html
+      .replaceAll("https://rtm-api-abop.onrender.com/RT%20MEDIA_animate%203.PNG", "/RT%20MEDIA_animate%203.PNG")
+      .replaceAll("onerror=\"this.style.display='none'\"", "onerror=\"this.onerror=null;this.src='/apple-touch-icon.png'\"")
+      .replace("const API    = \"https://rtm-api-abop.onrender.com\";", "const ORIGIN = window.location.origin || \"https://rtm-api-abop.onrender.com\";\nconst API    = ORIGIN;")
+      .replace("const SITE   = \"https://rtm-api-abop.onrender.com\";", "const SITE   = ORIGIN;")
+      .replace(/\n\/\* Force redeploy 2026-05-26T20:10:00Z \*\/\s*$/, "\n");
+    res.type("html").send(html);
+  } catch (error) {
+    console.error("Failed to serve admin portal", error);
+    res.status(500).send("Portal unavailable");
+  }
+}
+
+app.get(["/", "/index.html"], serveAdminPortalPage);
+
 // Serve the admin portal
 app.use(express.static(path.join(__dirname, "..")));
-
-// Redirect root to admin portal
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "admin-portal", "index.html"));
-});
 
 // Health check
 app.get("/health", (req, res) => {
