@@ -1448,7 +1448,7 @@
             <button className="bp"
               style={{flex:2,padding:16,fontSize:14,opacity:(!payMethod||!cyc.name||!cyc.email)?0.45:1,transition:"opacity .2s"}}
               disabled={!payMethod||!cyc.name||!cyc.email}
-              onClick={onSubmit}>
+              onClick={()=>onSubmit({ selDate, selTime, hrs, durLabel: durObj.label, dueNow, grandTotal, selectedAddons: cycAddons, payMethod })}>
               {payMethod==="etransfer" ? `Confirm Booking — ${dueNow.toFixed(2)} via E-Transfer`
                 : payMethod==="paypal" ? `Pay $${dueNow.toFixed(2)} via PayPal →`
                 : payMethod==="apple"  ? `Pay $${dueNow.toFixed(2)} with Apple Pay →`
