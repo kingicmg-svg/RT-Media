@@ -949,6 +949,9 @@ app.post("/toggle-2fa", async (req, res) => {
   }
 });
 
+// ── Health check ────────────────────────────────────────────────────────────
+app.get("/health", (req, res) => res.json({ ok: true, ts: Date.now() }));
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 init().then(() => {
   app.listen(PORT, () => console.log(`RTM API running on :${PORT}`));

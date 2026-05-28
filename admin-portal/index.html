@@ -699,6 +699,9 @@ async function assignAutoThumb(item) {
 }
 
 /* ── Auth ──────────────────────────────────────────────────────── */
+// Ping the server on page load to wake it up (avoids cold-start on first login)
+fetch(`${API}/health`).catch(()=>{});
+
 async function doLogin() {
   const pw = document.getElementById("pwInput").value.trim();
   if (!pw) return;
@@ -733,6 +736,38 @@ async function doLogin() {
     await reloadChats();
     startChatPolling();
   } catch(e) {
+    // "Load failed" = server waking up (Render cold start) — retry once
+    if (e.message === "Load failed" || e.message === "Failed to fetch" || e.message === "NetworkError when attempting to fetch resource.") {
+      document.getElementById("loginErr").textContent = "Server is waking up — retrying…";
+      await new Promise(r => setTimeout(r, 4000));
+      try {
+        const r2 = await fetch(`${API}/login-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: pw })
+        });
+        const text2 = await r2.text();
+        let d2;
+        try { d2 = JSON.parse(text2); } catch(_) { throw new Error("Server unavailable — please wait a moment and try again."); }
+        if (!d2.ok) { document.getElementById("loginErr").textContent = d2.error || "Login failed"; return; }
+        if (d2.needs2fa) {
+          sessionStorage.twoFaSessionId = d2.sessionId;
+          document.getElementById("pwInput").value = "";
+          document.getElementById("loginBox").style.display = "none";
+          document.getElementById("twoFaBox").style.display = "flex";
+          return;
+        }
+        secret = d2.sessionToken;
+        bookings = [];
+        document.getElementById("login").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        await loadSettings(); await reloadBookings(); await reloadChats(); startChatPolling();
+        return;
+      } catch(e2) {
+        document.getElementById("loginErr").textContent = "Connection failed — check your internet and try again.";
+        return;
+      }
+    }
     document.getElementById("loginErr").textContent = "Connection error: " + e.message;
   }
 }
