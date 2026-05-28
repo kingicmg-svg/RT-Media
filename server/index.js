@@ -91,8 +91,6 @@ function serveAdminPortalPage(req, res) {
       .replaceAll("/RT%20MEDIA_animate%203.PNG", "/rt-logo.png?v=portal-logo-2")
       .replaceAll("/rt-logo.png\"", "/rt-logo.png?v=portal-logo-2\"")
       .replaceAll("onerror=\"this.style.display='none'\"", "onerror=\"this.onerror=null;this.src='/apple-touch-icon.png'\"")
-      .replace("const API    = \"https://rtm-api-abop.onrender.com\";", "const ORIGIN = window.location.origin || \"https://rtm-api-abop.onrender.com\";\nconst API    = ORIGIN;")
-      .replace("const SITE   = \"https://rtm-api-abop.onrender.com\";", "const SITE   = ORIGIN;")
       .replace(/\n\/\* Force redeploy 2026-05-26T20:10:00Z \*\/\s*$/, "\n");
     res.type("html").send(html);
   } catch (error) {
